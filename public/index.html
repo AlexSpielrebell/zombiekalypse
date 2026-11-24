@@ -153,6 +153,24 @@ table.wt th{color:var(--mute);font-weight:600;font-size:12px;text-transform:uppe
 .tok-name{fill:#f2f4ea;font-weight:700;font-size:15px;paint-order:stroke;stroke:#000a;stroke-width:4px;pointer-events:none}
 .tok-ini{fill:#11160b;font-family:var(--head);font-size:30px;pointer-events:none}
 #wb-draft{pointer-events:none}
+/* Kampf */
+.cb{display:flex;flex-direction:column;gap:12px}
+.tabs .badge{background:var(--blood);color:#fff;border-radius:10px;padding:0 7px;font-size:11.5px;margin-left:4px}
+.tabs .badge.off{background:#0005;color:inherit}
+.cbform{display:grid;grid-template-columns:minmax(0,1.4fr) 80px 110px auto auto;gap:8px}
+.cbform label.f{display:flex;flex-direction:column;gap:3px;font-size:12.5px;color:var(--mute)}
+.cbturn{display:flex;gap:16px;align-items:center;flex-wrap:wrap;justify-content:space-between;background:var(--panel);border:2px solid var(--line2);border-radius:var(--r);padding:12px 14px}
+.cbturn.me{border-color:var(--acc);background:#1b2414}
+.cbkeys{display:flex;flex-wrap:wrap;gap:4px}.cbkeys .btn{min-width:38px;padding:7px 0}
+.cbl{display:flex;flex-direction:column;gap:6px}
+.cbr{display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:7px 10px}
+.cbr .pos{width:18px;text-align:center;color:var(--mute);font-weight:700}
+.cbr .dot{width:12px;height:12px;border-radius:50%;background:var(--c);flex:none}
+.cbr .ini{font-size:24px;font-weight:700;min-width:44px;text-align:right}
+.cbr.now{border-color:var(--acc);background:#1b2414}.cbr.now .pos{color:var(--acc)}
+.cbr.wait{border-style:dashed}
+.cbr.done{opacity:.55}
+@media (max-width:760px){.cbform{grid-template-columns:1fr 1fr}.cbr{flex-wrap:wrap}.cbr .ini{min-width:0}}
 /* Dialog & Hinweis */
 #modal{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;z-index:100;padding:16px}
 #modal.on{display:flex}
@@ -325,7 +343,7 @@ async function newGame() {
 }
 async function delGame(id) {
   if (!await uiConfirm(`Runde „${S.games[id]?.name}“ mit Whiteboard und Würfelprotokoll für alle löschen? Die Charaktere bleiben erhalten.`, "Löschen")) return;
-  for (const sub of ["members", "board", "tokens", "rolls"]) { const s = await DB.collection(`games/${id}/${sub}`).get(); for (const d of s.docs) if (!(sub === "members" && d.id === UID)) await DB.doc(`games/${id}/${sub}/${d.id}`).delete().catch(() => {}); }
+  for (const sub of ["members", "board", "tokens", "rolls", "combat"]) { const s = await DB.collection(`games/${id}/${sub}`).get(); for (const d of s.docs) if (!(sub === "members" && d.id === UID)) await DB.doc(`games/${id}/${sub}/${d.id}`).delete().catch(() => {}); }
   await DB.doc(`games/${id}/members/${UID}`).delete().catch(() => {});
   await DB.doc(`games/${id}`).delete().catch(writeErr);
 }
@@ -501,7 +519,7 @@ function closeGame() { gUnsub.forEach(u => u()); gUnsub = []; if (S.G) Object.va
 async function openGame(id) {
   closeGame();
   S.G = { id, game: null, members: {}, chars: {}, charSubs: {}, board: {}, tokens: {}, rolls: [], tab: "party", tool: "pen", color: "#9fd24a", width: 4, fill: false, zoom: 1, sel: null, stamp: "🧟",
-    roll: { what: "", state: "normal", mod: 0, sd: 0, wp: 0, armor: 7, extra: 0, free: 3 } };
+    roll: { what: "", state: "normal", mod: 0, sd: 0, wp: 0, armor: 7, extra: 0, free: 3 }, combat: null, cf: { name: "Zombie", count: 3, base: 4, group: true } };
   S.view = "game"; history.replaceState(null, "", "#runde=" + id);
   const G = S.G;
   gUnsub.push(DB.doc(`games/${id}`).onSnapshot(s => {
@@ -516,6 +534,7 @@ async function openGame(id) {
   }, writeErr));
   gUnsub.push(DB.collection(`games/${id}/board`).onSnapshot(s => { if (S.G !== G) return; G.board = Object.fromEntries(s.docs.map(d => [d.id, d.data()])); if (G.tab === "board" && !WD) wbRender(); }, writeErr));
   gUnsub.push(DB.collection(`games/${id}/tokens`).onSnapshot(s => { if (S.G !== G) return; G.tokens = Object.fromEntries(s.docs.map(d => [d.id, d.data()])); if (G.tab === "board" && !WD) wbRender(); }, writeErr));
+  gUnsub.push(DB.doc(`games/${id}/combat/state`).onSnapshot(s => { if (S.G !== G) return; G.combat = s.exists ? s.data() : null; if (G.tab === "combat") render(); else renderTabs(); }, writeErr));
   gUnsub.push(DB.collection(`games/${id}/rolls`).orderBy("ts", "desc").limit(60).onSnapshot(s => { if (S.G !== G) return; G.rolls = s.docs.map(d => ({ id: d.id, ...d.data() })); renderLog(); }, writeErr));
   render();
 }
@@ -544,6 +563,11 @@ async function kick(uid) {
   if (!await uiConfirm(`${S.G.members[uid]?.name || "Diese Person"} aus der Runde entfernen?`, "Entfernen")) return;
   DB.doc(`games/${S.G.id}/members/${uid}`).delete().catch(writeErr);
 }
+function tabsHTML() {
+  const G = S.G, cb = G.combat, cur = cb?.round ? cbOrder()[0] : null, mine = cur && cbCanAct(cur) && (cur.kind === "pc" || isGM());
+  return `<button class="${G.tab === "party" ? "on" : ""}" onclick="setTab('party')">Charaktere</button><button class="${G.tab === "board" ? "on" : ""}" onclick="setTab('board')">Whiteboard</button><button class="${G.tab === "combat" ? "on" : ""}" onclick="setTab('combat')">⚔ Kampf${cb?.active ? (mine ? ` <span class="badge">du bist dran</span>` : ` <span class="badge off">${cb.round ? "R" + cb.round : "bereit"}</span>`) : ""}</button>`;
+}
+function renderTabs() { const el = $("#tabs"); if (el && S.G) el.innerHTML = tabsHTML(); }
 function setTab(t) { S.G.tab = t; S.G.sel = null; render(); }
 function renderGame() {
   const G = S.G, app = $("#app");
@@ -556,12 +580,13 @@ function renderGame() {
     const withChar = members.filter(([, x]) => x.charId);
     main = `<div class="party">${withChar.length ? withChar.map(([u, x]) => { const c = G.chars[`${x.charOwner}/${x.charId}`]; return c ? sheetHTML(c, { owner: x.charOwner, id: x.charId, own: x.charOwner === UID, player: x.name }) : `<div class="card mute">Lade Charakter von ${esc(x.name)} …</div>`; }).join("")
       : `<div class="empty">Noch niemand hat einen Charakter mitgebracht.</div>`}</div>`;
-  } else main = wbShell();
+  } else if (G.tab === "combat") main = combatHTML();
+  else main = wbShell();
   app.innerHTML = `<div class="tbl-head"><button class="btn" onclick="go('home')">←</button><h1 class="grow" style="min-width:200px">${esc(G.game.name)}</h1>
       <div class="chips">${members.map(([u, x]) => `<span class="chip ${x.role === "gm" ? "gm" : ""}" title="${x.role === "gm" ? "Spielleitung" : "Spieler/in"}"><i style="--c:${esc(x.color)}"></i>${esc(x.name || "?")}${x.role === "gm" ? " (SL)" : ""}${gm && u !== UID ? ` <button class="x" style="font-size:13px;padding:0 0 0 4px" title="Entfernen" onclick="kick('${u}')">✕</button>` : ""}</span>`).join("")}</div></div>
     ${!m ? `<div class="card" style="margin-bottom:12px"><div class="row"><b class="grow">Du bist noch nicht in dieser Runde.</b>${myChars.length ? `<select id="joinsel" style="width:auto">${myChars.map(([id, c]) => `<option value="${id}">${esc(c.name || "Unbenannt")}</option>`).join("")}</select><button class="btn pri" onclick="joinGame($('#joinsel').value)">Mit Charakter beitreten</button>` : `<button class="btn pri" onclick="editChar()">Erst Charakter anlegen</button>`}<button class="btn" onclick="joinGame(null)">Ohne Charakter zuschauen</button></div></div>`
       : `<div class="row small" style="margin-bottom:10px"><span class="mute">${m.role === "gm" ? "Du leitest diese Runde." : "Dein Charakter:"}</span><select style="width:auto;padding:4px 8px" onchange="joinGame(this.value||null)"><option value="">– keiner –</option>${myChars.map(([id, c]) => `<option value="${id}" ${m.charId === id ? "selected" : ""}>${esc(c.name || "Unbenannt")}</option>`).join("")}</select>${m.charId ? `<button class="btn sm" onclick="editChar('${m.charId}')">Bogen bearbeiten</button>` : ""}<span class="grow"></span>${m.role !== "gm" ? `<button class="btn sm" onclick="leaveGame()">Runde verlassen</button>` : ""}<button class="btn sm" onclick="copyLink()">Link kopieren</button></div>`}
-    <div class="tbl"><div><div class="tabs"><button class="${G.tab === "party" ? "on" : ""}" onclick="setTab('party')">Charaktere</button><button class="${G.tab === "board" ? "on" : ""}" onclick="setTab('board')">Whiteboard</button></div>${main}</div>
+    <div class="tbl"><div><div class="tabs" id="tabs">${tabsHTML()}</div>${main}</div>
       <aside class="side"><div class="card roller" id="roller"></div><div class="card" style="display:flex;flex-direction:column;min-height:0;flex:1"><div class="row" style="margin-bottom:8px"><h3 class="grow">Würfelprotokoll</h3>${gm ? `<button class="btn sm" onclick="clearLog()">Leeren</button>` : ""}</div><div class="log" id="log"></div></div></aside></div>`;
   if (G.tab === "board") wbRender();
   renderRoller(); renderLog();
@@ -677,6 +702,134 @@ async function clearLog() {
   if (!await uiConfirm("Würfelprotokoll für alle leeren?", "Leeren")) return;
   for (const r of S.G.rolls) DB.doc(`games/${S.G.id}/rolls/${r.id}`).delete().catch(() => {});
 }
+
+// ===================== Kampf & Initiative =====================
+// Zustand in games/<id>/combat/state: {active, round, entries:{eid:{kind, name, color, owner, charOwner, charId, base, ini, passed, wait, surprised, roll, seq}}}
+const cbPath = () => `games/${S.G.id}/combat/state`;
+const cbEntries = () => Object.entries(S.G.combat?.entries || {}).filter(([, e]) => e).map(([id, e]) => ({ id, ...e }));
+function cbSorted(list) { // höchster Wert zuerst; bei Gleichstand Gegner vor Spielenden, dann Reihenfolge des Beitritts
+  return list.slice().sort((a, b) => (b.ini ?? -99) - (a.ini ?? -99) || (a.kind === "npc" ? 0 : 1) - (b.kind === "npc" ? 0 : 1) || (a.seq || 0) - (b.seq || 0));
+}
+function cbOrder() { // aktive Reihenfolge inkl. Abwarten
+  const act = cbSorted(cbEntries().filter(e => !e.passed && (e.ini ?? 0) > 0));
+  const ids = new Set(act.map(e => e.id));
+  const waits = act.filter(e => e.wait && ids.has(e.wait) && e.wait !== e.id);
+  let out = act.filter(e => !waits.includes(e));
+  for (let guard = 0; waits.length && guard < 50; guard++) {
+    for (let i = 0; i < waits.length; i++) { const w = waits[i], at = out.findIndex(x => x.id === w.wait); if (at >= 0) { out.splice(at + 1, 0, w); waits.splice(i, 1); i--; } }
+  }
+  return out.concat(waits);
+}
+function cbCanAct(e) { return isGM() || (e.kind === "pc" && e.owner === UID); }
+function cbCharFor(e) { return e.kind === "pc" ? S.G.chars[`${e.charOwner}/${e.charId}`] : null; }
+function cbRollEntry(e, first) { // neuer Initiativewert: Übertrag + 2W10 + Basis
+  const c = cbCharFor(e), base = c ? iniBase(c) : (+e.base || 0);
+  const carry = first ? 0 : (e.ini ?? 0);
+  const d = (first && e.surprised) ? [] : [d10(), d10()];
+  const ini = carry + base + d.reduce((t, x) => t + x, 0);
+  return { base, ini, passed: ini <= 0, wait: null, roll: { d, carry, base } };
+}
+async function cbWrite(patch) { try { await DB.doc(cbPath()).update(patch); } catch (e) { writeErr(e); } }
+async function cbPrepare() { try { await DB.doc(cbPath()).set({ active: true, round: 0, entries: {}, by: UID, ts: Date.now() }); } catch (e) { writeErr(e); } }
+async function cbEnd() { if (await uiConfirm("Kampf für alle beenden?", "Beenden")) DB.doc(cbPath()).delete().catch(writeErr); }
+function cbNewRoundPatch(first) {
+  const entries = {};
+  for (const e of cbEntries()) entries[e.id] = cbRollEntry(e, first);
+  return { round: (S.G.combat.round || 0) + 1, entries };
+}
+async function cbStartRound(force) {
+  if (force && !await uiConfirm("Für alle eine neue Runde auswürfeln? Restpunkte werden übernommen.", "Neue Runde")) return;
+  cbWrite(cbNewRoundPatch(!S.G.combat.round));
+}
+async function cbJoin() {
+  const m = myMember(), c = myChar(); if (!c || !m?.charId) return;
+  const e = { kind: "pc", name: c.name || MYNAME, color: c.color, owner: UID, charOwner: m.charOwner, charId: m.charId, base: iniBase(c), ini: null, passed: false, wait: null, surprised: false, seq: Date.now() };
+  if (S.G.combat.round) Object.assign(e, cbRollEntry(e, true));
+  cbWrite({ entries: { ["p_" + UID]: e } });
+}
+function cbLeave(id) { cbWrite({ entries: { [id]: null } }); }
+async function cbAddEnemies() {
+  const f = S.G.cf, n = Math.max(1, Math.min(30, +f.count || 1)), base = +f.base || 0, name = (f.name || "Gegner").trim().slice(0, 40);
+  const entries = {}, now = Date.now();
+  const mk = (nm, i) => { const e = { kind: "npc", name: nm, color: "#d2463a", base, ini: null, passed: false, wait: null, surprised: false, seq: now + i, count: f.group ? n : 1 }; if (S.G.combat.round) Object.assign(e, cbRollEntry(e, true)); return e; };
+  if (f.group || n === 1) entries["n_" + rid()] = mk(f.group && n > 1 ? `${name} (×${n})` : name, 0);
+  else for (let i = 0; i < n; i++) entries["n_" + rid() + i] = mk(`${name} ${i + 1}`, i);
+  cbWrite({ entries });
+}
+function cbAct(id, v) { // v: Zahl 0–10 oder "x"
+  const order = cbOrder(), e = order[0];
+  if (!e || e.id !== id || !cbCanAct(e)) return;
+  const patch = { entries: {} };
+  for (const o of cbEntries()) if (o.wait === id) patch.entries[o.id] = { wait: null };
+  if (v === "x") patch.entries[id] = { passed: true, wait: null };
+  else if (v === 0) {
+    const next = order[1]; if (!next) { toast("Niemand sonst kann noch handeln. Gib Punkte an oder passe."); return; }
+    patch.entries[id] = { wait: next.id };
+  } else { if (v > (e.ini || 0)) { toast("Nicht genug Initiative für diese Aktion."); return; } const ini = (e.ini || 0) - v; patch.entries[id] = { ini, passed: ini <= 0, wait: null }; }
+  cbCommit(patch);
+}
+function cbCommit(patch) { // Haben danach alle gepasst, beginnt sofort die neue Runde
+  const after = cbEntries().map(o => ({ ...o, ...(patch.entries[o.id] || {}) }));
+  if (after.length && !after.some(o => !o.passed && (o.ini ?? 0) > 0)) {
+    const saved = S.G.combat.entries; S.G.combat.entries = Object.fromEntries(after.map(o => [o.id, o]));
+    const np = cbNewRoundPatch(false); S.G.combat.entries = saved;
+    cbWrite(np); toast(`Alle haben gepasst – Runde ${np.round} beginnt.`); return;
+  }
+  cbWrite(patch);
+}
+function cbDefend(id) {
+  const e = S.G.combat.entries[id]; if (!e || !cbCanAct({ ...e, id })) return;
+  const ini = (e.ini || 0) - 2, patch = { entries: { [id]: { ini, passed: !!e.passed || ini <= 0 } } };
+  if (ini <= 0) for (const o of cbEntries()) if (o.wait === id) patch.entries[o.id] = { wait: null };
+  cbCommit(patch);
+}
+async function cbSetIni(id) {
+  const e = S.G.combat.entries[id]; const v = await uiPrompt(`Initiative von ${e.name} setzen`, String(e.ini ?? 0)); if (v === null || v === "" || isNaN(+v)) return;
+  cbWrite({ entries: { [id]: { ini: Math.round(+v), passed: +v <= 0 ? true : false, wait: null } } });
+}
+function cbToggle(id, k) { const e = S.G.combat.entries[id]; cbWrite({ entries: { [id]: { [k]: !e[k] } } }); }
+function combatHTML() {
+  const G = S.G, cb = G.combat, gm = isGM();
+  if (!cb?.active) return `<div class="cb card"><h2>Kein Kampf aktiv</h2><p class="mute">${gm ? "Bereite einen Kampf vor. Danach können sich die Charaktere hinzufügen und du trägst die Gegner ein." : "Sobald die Spielleitung einen Kampf vorbereitet, kannst du deinen Charakter hier hinzufügen."}</p>${gm ? `<button class="btn pri" onclick="cbPrepare()">⚔ Kampf vorbereiten</button>` : ""}</div>`;
+  const all = cbEntries(), order = cb.round ? cbOrder() : [], cur = order[0];
+  const inOrder = new Set(order.map(e => e.id)), passed = cbSorted(all.filter(e => !inOrder.has(e.id) && cb.round));
+  const waiting = cbSorted(all.filter(() => !cb.round));
+  const mine = all.find(e => e.id === "p_" + UID), c = myChar();
+  const f = G.cf;
+  const row = (e, i, state) => {
+    const r = e.roll, detail = r ? (r.d.length ? `${r.d.join("+")} + ${r.base}${r.carry ? ` ${r.carry > 0 ? "+" : "−"} ${Math.abs(r.carry)} Übertrag` : ""}` : `überrascht: nur Grundwert ${r.base}${r.carry ? `, Übertrag ${r.carry}` : ""}`) : `Basis ${e.base}`;
+    const ch = cbCharFor(e), hp = ch ? cur2(ch) : "";
+    return `<div class="cbr ${state}" style="--c:${esc(e.color || "#888")}"><span class="pos">${state === "now" ? "▶" : i}</span><i class="dot"></i>
+      <div class="grow"><b>${esc(e.name)}</b>${e.kind === "npc" ? ` <span class="tag n" style="padding:0 7px">Gegner</span>` : ""}${e.surprised && !cb.round ? ` <span class="tag" style="padding:0 7px">überrascht</span>` : ""}
+        <div class="small mute">${esc(detail)}${state === "wait" ? " · wartet ab" : ""}${state === "done" ? " · gepasst" : ""}${hp}</div></div>
+      <span class="ini">${e.ini ?? "–"}</span>
+      <span class="row" style="gap:4px;flex-wrap:nowrap">${cb.round && cbCanAct(e) ? `<button class="btn sm" title="Verteidigen / Ausweichen: −2 Initiative (auch nach dem Passen, kann ins Minus gehen)" onclick="cbDefend('${e.id}')">🛡 −2</button>` : ""}
+        ${gm && !cb.round ? `<button class="btn sm" title="Überrascht: würfelt in Runde 1 nicht" onclick="cbToggle('${e.id}','surprised')">${e.surprised ? "✓ " : ""}überrascht</button>` : ""}
+        ${gm && cb.round ? `<button class="btn sm" title="Wert ändern" onclick="cbSetIni('${e.id}')">✎</button>` : ""}
+        ${gm || e.owner === UID ? `<button class="x" title="Aus dem Kampf nehmen" onclick="cbLeave('${e.id}')">✕</button>` : ""}</span></div>`;
+  };
+  const turn = cur ? `<div class="cbturn ${cbCanAct(cur) ? "me" : ""}"><div><span class="small mute">Am Zug</span><h2>${esc(cur.name)} <span class="mute" style="font-size:16px">mit ${cur.ini}</span></h2></div>
+      ${cbCanAct(cur) ? `<div><div class="small mute" style="margin-bottom:4px">Initiativekosten der Aktion (0 = abwarten, X = passen)</div><div class="cbkeys">${[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(v => `<button class="btn ${v === 5 ? "pri" : ""}" ${v > cur.ini ? "disabled" : ""} onclick="cbAct('${cur.id}',${v})" title="${v === 0 ? "Abwarten: rutscht eine Position nach unten" : v > cur.ini ? "Nicht genug Initiative übrig" : `${v} Initiative abziehen`}">${v}</button>`).join("")}<button class="btn danger" onclick="cbAct('${cur.id}','x')" title="Für diese Runde passen">X</button></div>
+        <div class="small mute" style="margin-top:6px">Richtwerte: normal 5 · hastig 3 · gezielt 7 · nachladen 1 · Bewegung 1 je 10 m</div></div>` : `<p class="small mute">Wartet auf ${cur.kind === "npc" ? "die Spielleitung" : esc(cur.name)}.</p>`}</div>` : "";
+  return `<div class="cb">
+    <div class="card"><div class="row"><h2 class="grow">⚔ ${cb.round ? `Runde ${cb.round}` : "Kampf in Vorbereitung"}</h2>
+      ${c && myMember()?.charId && !mine ? `<button class="btn pri" onclick="cbJoin()">${esc(c.name)} hinzufügen</button>` : ""}
+      ${gm && !cb.round ? `<button class="btn pri" ${all.length ? "" : "disabled"} onclick="cbStartRound()">Kampf starten</button>` : ""}
+      ${gm && cb.round ? `<button class="btn" onclick="cbStartRound(true)">Neue Runde erzwingen</button>` : ""}
+      ${gm ? `<button class="btn danger" onclick="cbEnd()">Kampf beenden</button>` : ""}</div>
+      ${!cb.round ? `<p class="small mute" style="margin:6px 0 0">Mit „Kampf starten“ würfeln alle Beteiligten 2W10 + Initiative. Überraschte starten nur mit ihrem Grundwert.</p>` : ""}</div>
+    ${gm ? `<div class="card"><h3 style="margin-bottom:8px">Gegner hinzufügen</h3><div class="cbform">
+      <label class="f"><span>Name</span><input value="${esc(f.name)}" oninput="S.G.cf.name=this.value"></label>
+      <label class="f"><span>Anzahl</span><input type="number" min="1" max="30" value="${f.count}" oninput="S.G.cf.count=+this.value"></label>
+      <label class="f"><span title="Basiswert der Initiative (bei Charakteren Körper + Willen)">Basis-Ini</span><input type="number" min="0" max="30" value="${f.base}" oninput="S.G.cf.base=+this.value"></label>
+      <label class="small" style="align-self:end;padding-bottom:9px"><input type="checkbox" ${f.group ? "checked" : ""} onchange="S.G.cf.group=this.checked"> gemeinsame Initiative (Gruppe)</label>
+      <button class="btn" style="align-self:end" onclick="cbAddEnemies()">+ Hinzufügen</button></div></div>` : ""}
+    ${turn}
+    <div class="card"><div class="cbl">${cb.round ? order.map((e, i) => row(e, i + 1, i === 0 ? "now" : e.wait ? "wait" : "")).join("") + (passed.length ? `<div class="small mute" style="margin:8px 0 2px">Gepasst</div>` + passed.map(e => row(e, "·", "done")).join("") : "")
+      : (waiting.length ? waiting.map((e, i) => row(e, i + 1, "")).join("") : `<div class="empty">Noch niemand im Kampf.</div>`)}</div></div>
+  </div>`;
+}
+function cur2(c) { const H = hpMax(c); return ` · LP ${cur(c, "hp", H)}/${H}`; }
 
 // ===================== Whiteboard =====================
 const WB_W = 1600, WB_H = 1000;

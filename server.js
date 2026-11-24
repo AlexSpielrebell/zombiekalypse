@@ -13,7 +13,7 @@
 // Datenpfade:  chars/<uid>/c/<charId>          Charaktere (nur Besitzer schreibt, alle lesen)
 //              games/<gameId>                   Runde {name, gm} (nur Spielleitung schreibt)
 //              games/<gameId>/members/<uid>     Teilnahme (die Person selbst oder Spielleitung)
-//              games/<gameId>/board|tokens|rolls/<id>   Whiteboard, Figuren, Würfe (alle Teilnehmenden)
+//              games/<gameId>/board|tokens|rolls|combat/<id>   Whiteboard, Figuren, Würfe, Kampf (alle Teilnehmenden)
 
 "use strict";
 const http = require("http");
@@ -71,7 +71,7 @@ function canWrite(uid, p, data) {
     if (s.length === 2) return gm ? gm === uid : (!data || data.gm === uid); // neue Runde: Ersteller wird Spielleitung
     if (!gm) return false;                                   // Runde existiert nicht
     if (s[2] === "members") return s[3] === uid || gm === uid;
-    return ["board", "tokens", "rolls"].includes(s[2]);
+    return ["board", "tokens", "rolls", "combat"].includes(s[2]);
   }
   return false;
 }

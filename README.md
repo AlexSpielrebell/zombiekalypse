@@ -13,6 +13,11 @@ eigener kleiner Server, kein Konto nötig. Wer die Adresse öffnet, gibt einmal 
   und Fertigkeiten für die Steigerung markieren.
 - **Whiteboard** für alle: Freihand, Linien, Pfeile, Rechtecke, Ellipsen, Text, Marker (🧟 💀 🚗 …), Farben, Verschieben, Radierer.
   Jeder Charakter hat eine Figur mit Lebenspunkte-Ring; bewegen dürfen sie ihr Besitzer und die Spielleitung. Nur die Spielleitung kann die Fläche leeren.
+- **Kampf & Initiative** (Reiter „⚔ Kampf“): Die Spielleitung bereitet einen Kampf vor und trägt Gegner ein (Name, Anzahl, Basiswert,
+  wahlweise mit gemeinsamer Initiative für Gruppen). Charaktere fügen sich per Button hinzu. Jede Runde würfeln alle automatisch 2W10 + Basiswert
+  (+ Übertrag aus der Vorrunde, Überraschte in Runde 1 nur den Grundwert). Die Liste ist absteigend sortiert; wer oben steht, gibt die Kosten
+  seiner Aktion an (0 = abwarten und eine Position nach unten rutschen, X = passen). Bei 0 Punkten passt man automatisch, verteidigen (−2) geht
+  immer, auch ins Minus. Haben alle gepasst, beginnt die nächste Runde von selbst.
 - **Würfel**: Proben mit Attribut + Fertigkeit, Zustände Ruhe/Normal/Stress/Krise, Stresswürfel einsetzen und Wurf wiederholen,
   Initiative (2W10 + Körper + Willen) und Schaden gegen einen Rüstungswert. Alle Würfe erscheinen im gemeinsamen Protokoll.
 
