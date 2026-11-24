@@ -1,0 +1,886 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zombiekalypse – Spieltisch</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%23141714'/%3E%3Ctext x='16' y='23' font-size='20' text-anchor='middle' fill='%239fd24a' font-family='Arial' font-weight='bold'%3EZ%3C/text%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#0f110f;--bg2:#151815;--panel:#1b1f1b;--panel2:#222722;--line:#2c332c;--line2:#3a433a;
+  --ink:#e6e8df;--mute:#9aa292;--acc:#9fd24a;--acc2:#c7ef7a;--blood:#d2463a;--warn:#e8a54b;--blue:#5b9be0;
+  --r:10px;--font:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;--head:"Impact","Haettenschweiler","Arial Narrow Bold",var(--font);
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 var(--font)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+input,select,textarea{background:var(--bg2);border:1px solid var(--line2);border-radius:8px;padding:7px 9px;width:100%;min-width:0}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--acc);outline-offset:-1px;border-color:transparent}
+textarea{resize:vertical;min-height:70px}
+input[type=checkbox]{width:auto;accent-color:var(--acc)}
+h1,h2,h3{margin:0;font-family:var(--head);font-weight:400;letter-spacing:.03em}
+h1{font-size:30px;color:var(--acc)}h2{font-size:22px;color:var(--acc2)}h3{font-size:16px;color:var(--acc);text-transform:uppercase}
+a{color:var(--acc)}
+.mute{color:var(--mute)}.small{font-size:13px}.warn{color:var(--warn)}.bad{color:var(--blood)}.good{color:var(--acc)}
+.btn{border:1px solid var(--line2);background:var(--panel2);border-radius:8px;padding:7px 13px;white-space:nowrap}
+.btn:hover{border-color:var(--acc)}
+.btn.pri{background:var(--acc);color:#11160b;border-color:var(--acc);font-weight:700}
+.btn.pri:hover{background:var(--acc2)}
+.btn.danger{border-color:#6b2a25;color:#ff9b90}.btn.danger:hover{background:#3a1714}
+.btn.sm{padding:3px 9px;font-size:13px}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.grow{flex:1}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px}
+/* Kopfzeile */
+.top{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--line);background:#0b0d0b;position:sticky;top:0;z-index:20}
+.brand{background:none;border:0;display:flex;align-items:center;gap:9px;padding:0;font-family:var(--head);font-size:22px;letter-spacing:.06em;color:var(--acc)}
+.brand .z{width:30px;height:30px;border-radius:50%;background:var(--acc);color:#11160b;display:grid;place-items:center;font-size:18px}
+.top .who{margin-left:auto;font-size:13px}
+.top .who button{background:none;border:0;color:var(--acc);text-decoration:underline;padding:0}
+main{max-width:1200px;margin:0 auto;padding:18px 16px 40px}
+/* Start */
+.home{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.list{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.item{display:flex;gap:10px;align-items:center;background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:9px 11px}
+.item .t{font-weight:700}.item .s{font-size:13px;color:var(--mute)}
+.empty{padding:16px;text-align:center;color:var(--mute);border:1px dashed var(--line2);border-radius:8px}
+.hero{margin-bottom:16px;padding:18px;border-radius:var(--r);background:linear-gradient(135deg,#1d2618,#141614 60%);border:1px solid var(--line)}
+.hero p{margin:6px 0 0;color:var(--mute);max-width:720px}
+/* Editor */
+.ed{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
+.ed section{margin-bottom:14px}
+.ed .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ed .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.ed label.f{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--mute)}
+.ed label.f>span{font-weight:600}
+.attrbox{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:10px;text-align:center}
+.attrbox b{display:block;font-family:var(--head);font-size:16px;letter-spacing:.05em;color:var(--acc)}
+.step{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:6px}
+.step button{width:30px;height:30px;border-radius:50%;border:1px solid var(--line2);background:var(--panel2)}
+.step .v{font-size:24px;font-weight:700;min-width:28px}
+.skills{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.skgrp h3{margin-bottom:6px}
+.sk{display:grid;grid-template-columns:minmax(0,1fr) 62px;gap:6px;align-items:center;padding:3px 0;border-bottom:1px solid var(--line)}
+.sk .n{font-size:14px}.sk .n small{display:block;color:var(--mute);font-size:11.5px;line-height:1.2}
+.sk select{padding:4px 6px}
+.sum{position:sticky;top:66px}
+.sum .line{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--line)}
+.sum ul{margin:8px 0 0;padding-left:18px;font-size:13px}
+.lst{display:flex;flex-direction:column;gap:6px}
+.lr{display:grid;gap:6px;align-items:center}
+.lr.tr{grid-template-columns:minmax(0,1.4fr) 110px 90px auto auto}
+.lr.wp{grid-template-columns:minmax(0,1.4fr) 70px minmax(0,1.6fr) auto}
+.lr.cs{grid-template-columns:minmax(0,1.4fr) 110px 70px auto}
+.x{border:0;background:none;color:var(--mute);font-size:18px;padding:0 6px}.x:hover{color:var(--blood)}
+/* Bogen */
+.sheet{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:12px}
+.sh-head{display:flex;gap:12px;align-items:center}
+.av{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;font-family:var(--head);font-size:22px;color:#11160b;background:var(--c,var(--acc));flex:none}
+.sh-head h2{line-height:1.1}.sh-head p{margin:2px 0 0;color:var(--mute);font-size:13px}
+.res{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.rb{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.rb .l{gap:8px;flex-wrap:wrap;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);display:flex;justify-content:space-between}
+.rb .v{font-size:20px;font-weight:700;display:flex;align-items:center;gap:6px}
+.rb .v button{width:26px;height:26px;border-radius:50%;border:1px solid var(--line2);background:var(--panel2);font-size:15px;line-height:1;padding:0}
+.bar{height:6px;border-radius:3px;background:#0006;margin-top:5px;overflow:hidden}.bar i{display:block;height:100%;background:var(--c)}
+.dots{display:flex;gap:4px;flex-wrap:wrap}.dots i{width:14px;height:14px;border-radius:3px;border:2px solid var(--warn)}.dots i.on{background:var(--warn)}
+.sh-attrs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.sa{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:8px}
+.sa .h{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--line2);padding-bottom:4px;margin-bottom:4px}
+.sa .h b{font-family:var(--head);letter-spacing:.05em;color:var(--acc);font-size:15px}.sa .h span{font-size:20px;font-weight:700}
+.sa .s{display:flex;justify-content:space-between;gap:6px;font-size:13px;padding:1px 0}
+.sa .s.none{color:var(--mute);opacity:.55}
+.sa .s .mk{display:inline-flex;align-items:center;gap:5px}
+.sa .s input{margin:0;width:13px;height:13px}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag{border-radius:20px;padding:3px 10px;font-size:13px;border:1px solid var(--line2);background:var(--bg2)}
+.tag.v{border-color:#3e5a20;color:var(--acc2)}.tag.n{border-color:#6b2a25;color:#ff9b90}
+table.wt{width:100%;border-collapse:collapse;font-size:13.5px}
+table.wt td,table.wt th{padding:4px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+table.wt th{color:var(--mute);font-weight:600;font-size:12px;text-transform:uppercase}
+.pre{white-space:pre-wrap;font-size:14px}
+/* Spieltisch */
+.tbl{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:14px;align-items:start}
+.tbl-head{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.tabs{display:flex;gap:4px}
+.tabs button{border:1px solid var(--line2);background:var(--panel);padding:7px 14px;border-radius:8px 8px 0 0;border-bottom-color:transparent}
+.tabs button.on{background:var(--acc);color:#11160b;font-weight:700;border-color:var(--acc)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:3px 9px 3px 4px;border-radius:20px;background:var(--panel);border:1px solid var(--line)}
+.chip i{width:18px;height:18px;border-radius:50%;background:var(--c);display:inline-block}
+.chip.gm{border-color:var(--warn)}
+.party{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,520px),1fr));gap:12px}
+.side{display:flex;flex-direction:column;gap:12px;position:sticky;top:66px;max-height:calc(100vh - 80px)}
+.roller label.f{display:flex;flex-direction:column;gap:3px;font-size:12.5px;color:var(--mute);margin-bottom:8px}
+.seg{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line2);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:var(--bg2);padding:6px 2px;font-size:13px}
+.seg button+button{border-left:1px solid var(--line2)}
+.seg button.on{background:var(--acc);color:#11160b;font-weight:700}
+.seg button.on.st{background:var(--warn)}.seg button.on.kr{background:var(--blood);color:#fff}
+.log{overflow:auto;display:flex;flex-direction:column;gap:7px;min-height:120px;flex:1}
+.lg{background:var(--bg2);border:1px solid var(--line);border-left:4px solid var(--c,var(--line2));border-radius:8px;padding:7px 9px;font-size:13px}
+.lg .who{font-weight:700}.lg .lab{color:var(--mute)}
+.lg .res{display:block;font-size:17px;font-weight:700;margin-top:3px}
+.lg.crit{border-color:var(--blood);background:#2a1210}
+.dice{display:flex;flex-wrap:wrap;gap:3px;margin-top:5px}
+.d{width:24px;height:24px;border-radius:5px;display:grid;place-items:center;font-size:12px;font-weight:700;background:#2a302a;color:var(--mute)}
+.d.ok{background:#3d5a1d;color:var(--acc2)}.d.ten{background:var(--acc);color:#11160b}.d.one{background:#5a1d18;color:#ffb4aa}
+.d.sd{outline:2px solid var(--warn);outline-offset:-2px}
+.side .card{padding:12px}
+/* Whiteboard */
+.wb-wrap{display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:0 var(--r) var(--r) var(--r);overflow:hidden}
+.wb-tools{display:flex;flex-wrap:wrap;gap:4px;align-items:center;padding:6px 8px;border-bottom:1px solid var(--line)}
+.wbt{min-width:32px;height:32px;border-radius:8px;border:1px solid var(--line2);background:var(--bg2);font-size:15px;padding:0 6px}
+.wbt.on{background:var(--acc);color:#11160b;border-color:var(--acc)}.wbt:disabled{opacity:.35;cursor:not-allowed}
+.wbc{width:22px;height:22px;border-radius:50%;border:2px solid var(--line2);background:var(--c);padding:0}
+.wbc.on{outline:2px solid #fff;outline-offset:1px}
+.wbc.custom{background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red);position:relative;overflow:hidden}
+.wbc.custom input{opacity:0;position:absolute;inset:0;cursor:pointer;padding:0}
+.wbw{width:auto;padding:4px 6px;font-size:12px}
+.wb-sep{width:1px;height:22px;background:var(--line2);margin:0 4px}
+.wb-scroll{overflow:auto;max-height:calc(100vh - 190px);padding:8px}
+#wb{display:block;touch-action:none;user-select:none;-webkit-user-select:none;border-radius:8px;min-width:100%;cursor:crosshair}
+#wb[data-tool=select]{cursor:default}#wb[data-tool=erase]{cursor:not-allowed}
+.wb-bg{fill:#121612}
+.wbo .hit{fill:none;stroke:transparent;pointer-events:stroke}.wbo .hit.filled{pointer-events:all;fill:transparent}
+.wbo text{pointer-events:all}
+#wb[data-tool=select] .wbo{cursor:move}#wb[data-tool=erase] .wbo:hover{opacity:.5}
+.wb-text{font-family:var(--font);font-weight:700;user-select:none}
+.wb-selbox{fill:none;stroke:#fff;stroke-width:2;stroke-dasharray:6 5;pointer-events:none}
+.tok.can{cursor:grab}
+.tok-name{fill:#f2f4ea;font-weight:700;font-size:15px;paint-order:stroke;stroke:#000a;stroke-width:4px;pointer-events:none}
+.tok-ini{fill:#11160b;font-family:var(--head);font-size:30px;pointer-events:none}
+#wb-draft{pointer-events:none}
+/* Dialog & Hinweis */
+#modal{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;z-index:100;padding:16px}
+#modal.on{display:flex}
+#modal .box{background:var(--panel);border:1px solid var(--line2);border-radius:var(--r);padding:18px;width:min(440px,100%)}
+#modal .box p{margin:0 0 12px}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--acc);border-radius:8px;padding:9px 14px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:110;max-width:calc(100% - 32px)}
+#toast.on{opacity:1}
+.saved{font-size:12px;color:var(--mute)}
+@media (max-width:980px){.tbl{grid-template-columns:minmax(0,1fr)}.side{position:static;max-height:none}.log{max-height:420px}.ed{grid-template-columns:1fr}.sum{position:static}}
+@media (max-width:760px){.home{grid-template-columns:minmax(0,1fr)}.skills{grid-template-columns:1fr}.sh-attrs{grid-template-columns:repeat(2,1fr)}.ed .grid4{grid-template-columns:repeat(2,1fr)}.ed .grid2{grid-template-columns:1fr}
+  .lr.tr{grid-template-columns:1fr 1fr}.lr.wp{grid-template-columns:1fr 70px}.lr.cs{grid-template-columns:1fr 1fr}.top .brand span.sub{display:none}}
+</style>
+</head>
+<body>
+<header class="top">
+  <button class="brand" onclick="go('home')"><span class="z">Z</span><span>ZOMBIEKALYPSE<span class="sub mute" style="font-family:var(--font);font-size:13px;letter-spacing:0"> · Spieltisch</span></span></button>
+  <div class="who" id="who"></div>
+</header>
+<main id="app"><p class="mute">Verbinde …</p></main>
+<div id="modal"><div class="box" id="modal-box"></div></div>
+<div id="toast" role="status"></div>
+<script src="adapter.js"></script>
+<script>
+"use strict";
+// ===================== Regeldaten =====================
+const ATTRS = [["koerper", "Körper"], ["hirn", "Hirn"], ["herz", "Herz"], ["willen", "Willen"]];
+const ATTR_NAME = Object.fromEntries(ATTRS);
+const SKILLS = {
+  koerper: [["handfeuerwaffen", "Handfeuerwaffen", "Pistolen, Revolver, gezielte Schüsse"], ["ausweichen", "Ausweichen", "Gefahren und Angriffen ausweichen, abrollen"], ["langwaffen", "Langwaffen", "Gewehre, Flinten, Scharfschützengewehr"], ["nahkampf", "Nahkampf", "Messer, Baseballschläger, Äxte"], ["waffenlos", "Waffenloser Kampf", "Boxen, Ringen, jemanden festhalten"], ["wurfwaffen", "Wurfwaffen", "Granaten, Molotowcocktails, Steine"], ["bogen", "Bogen", "Bogen, Armbrust"], ["athletik", "Athletik", "Klettern, weite Sprünge, Sprinten"], ["heimlichkeit", "Heimlichkeit", "Schleichen, sich im Unterholz verbergen"], ["kraftakt", "Kraftakt", "Türen aufbrechen, schwere Trümmer heben"]],
+  hirn: [["beobachten", "Beobachten", "Hinterhalte bemerken, Spuren finden"], ["erstehilfe", "Erste Hilfe", "Kleine Behandlungen, Infektionen erkennen"], ["technik", "Technik", "Mechanik, Schlösser knacken, Motoren reparieren"], ["elektronik", "Elektronik", "Funkgeräte, Computer, Verkabelung"], ["fahrzeuge", "Fahrzeuge", "PKW, LKWs oder Busse sicher steuern"], ["naturkunde", "Naturkunde", "Orientierung, Wetter, essbare Pflanzen"], ["allgemeinwissen", "Allgemeinwissen", "Wissen, Geschichte, Politik"], ["ueberzeugen", "Überzeugen", "Jemanden mit Logik überzeugen"]],
+  herz: [["empathie", "Empathie", "Lügen erkennen, Motivationen lesen"], ["verspotten", "Verspotten", "Einen Feind provozieren (Ablenkung)"], ["charme", "Charme", "Umgarnen, verführen"], ["handeln", "Handeln", "Tauschhandel, Preise verhandeln"], ["vortragen", "Vortragen", "Singen, Geschichten erzählen (Moral)"], ["taeuschen", "Täuschen", "Überzeugendes Lügen, falsche Fährten"], ["infos", "Informationsbeschaffung", "Die richtigen Leute finden und fragen"], ["reiten", "Reiten", "Pferde reiten"]],
+  willen: [["selbstbeherrschung", "Selbstbeherrschung", "Schmerz, Hunger, Kälte, Gerüche ertragen"], ["stabilitaet", "Geistige Stabilität", "Traumata und Horror verarbeiten"], ["konzentration", "Konzentration", "Aufgaben unter extremem Zeitdruck"], ["einschuechtern", "Einschüchtern", "Durch Drohungen zum Reden bringen"], ["instinkt", "Instinkt", "Bauchgefühl, Warnung vor Gefahr"]]
+};
+const SKILL_INFO = {}; for (const [a, l] of Object.entries(SKILLS)) for (const [k, n, d] of l) SKILL_INFO[k] = { attr: a, name: n, desc: d };
+const ATTR_BUDGETS = [[10, "Durchschnittlich (10)"], [13, "Fähig (13)"], [16, "Außergewöhnlich / Held (16)"]];
+const SKILL_BUDGETS = [[10, "Schwach, jung, ungelernt (10)"], [15, "Normal begabt (15)"], [20, "Fähig, Abenteuerstart (20)"], [25, "Erfahren (25)"], [35, "Veteran (35)"]];
+// Kosten in Fertigkeitspunkten (positiv = kostet, negativ = bringt). Kleiner Vorteil: im Regeltext noch offen, hier 2 angenommen.
+const TRAIT_COST = { vorteil: { klein: 2, gross: 5 }, nachteil: { klein: -2, gross: -5 } };
+const WEAPONS = [
+  ["Faust / Tritt", 2, "Ausdauerschaden statt LP-Schaden"], ["Martial Arts Angriff", 2, "LP-Schaden"], ["Messer / Jagddolch", 2, "Schnell: −1 Initiativekosten; leicht zu verbergen"],
+  ["Stuhlbein / Knüppel", 3, "Improvisiert: zerbricht bei zwei gewürfelten 1en"], ["Baseballschläger (Alu)", 4, "Robust; kann Ziele zurückstoßen"], ["Handaxt", 4, "Kurzer Stiel"],
+  ["Feuerwehraxt", 5, "Wuchtig: 6W gegen Türen und Barrikaden"], ["Kettensäge", 6, "Laut: zieht Zombies an; benötigt Benzin"],
+  ["Jagdbogen (Compound)", 4, "Lautlos"], ["Armbrust", 5, "Präzise: 2 Initiative zum Nachladen"],
+  ["Revolver (.38 Special)", 4, "Zuverlässig: keine Ladehemmung"], ["Colt 1911 (.45 ACP)", 5, "Stoppwirkung: wirft menschliche Ziele um"], ["Magnum .44", 6, "Laut; −1W auf Folgeschuss"],
+  ["Jagdgewehr (Repetierer)", 6, "Hohe Reichweite"], ["Schrotflinte (Pump-Action)", 7, "Streuung: bis zu 2 Ziele auf kurze Distanz"], ["M16 (Sturmgewehr)", 8, "Feuerstoß: hoher Munitionsverbrauch; +2W"],
+  ["M60 Maschinengewehr", 10, "Sperrfeuer: kann Deckung durchschlagen"], ["M72 LAW (Bazooka)", 12, "Einweg"], ["Splittergranate", 9, "Fläche: Radius 5 m"], ["Molotow-Cocktail", 4, "Brand: +2W in der nächsten Runde"],
+  ["Mistgabel", 4, "Aufspießen (+1 Initiative)"], ["Schaufel", 4, ""], ["Glättkelle", 3, "+1 auf Ausweichen"], ["Vorschlaghammer", 4, "Verwüster; +2W gegen liegende/festgehaltene Gegner"],
+  ["Handsäge / Feinsäge", 2, ""], ["Hammer", 4, "Kopftreffer (Mensch): −3 Initiative, „benommen“"], ["Sichel", 2, "Bleibt stecken: Gegner „festgehalten“"], ["Spitzhacke", 4, ""], ["Handbeil", 4, ""], ["Bolzenschneider", 3, ""]
+];
+const ARMORS = [["Keine / normale Kleidung", 7, 6, "Keine Behinderung"], ["Dicke Winterjacke", 8, 7, "Gut gegen Bisse, kaum gegen Kugeln"], ["Biker-Lederjacke", 8, 7, "Hält Kratzer ab"], ["Eishockey-Ausrüstung", 9, 7, "Ideal gegen Zähne"],
+  ["Leichte Kevlarweste (Polizei)", 8, 9, "Ballistischer Schutz"], ["Militär-Splitterschutzweste", 9, 9, "Schwer"], ["EOD-Anzug", 10, 10, "Nur 1W auf Bewegungsproben"], ["Improvisiert (Magazine/Tape)", 8, 7, "Hält nur 1–2 Treffer"], ["Polizei-Schild (Riot Shield)", 10, 9, "Aktiv halten; nur Einhandwaffen"]];
+const STATES = [["ruhe", "Ruhe"], ["normal", "Normal"], ["stress", "Stress"], ["krise", "Krise"]];
+const COLORS = ["#9fd24a", "#e8a54b", "#5b9be0", "#d2463a", "#a77de0", "#e57fa1", "#5cc0b2", "#d9c25f"];
+
+const hpMax = c => 5 + (+c.attrs.koerper || 0) + (+c.attrs.hirn || 0);
+const staMax = c => 5 + (+c.attrs.willen || 0) + (+c.attrs.herz || 0);
+const iniBase = c => (+c.attrs.koerper || 0) + (+c.attrs.willen || 0);
+const cur = (c, k, max) => (c[k] === null || c[k] === undefined) ? max : c[k];
+function newChar() {
+  return { name: "", concept: "", age: "", gender: "", build: "", desc: "", attrBudget: 13, skillBudget: 20,
+    attrs: { koerper: 1, hirn: 1, herz: 1, willen: 1 }, skills: {}, custom: [],
+    traits: [{ name: "", kind: "vorteil", size: "klein", free: true }], weapons: [], armor: { name: ARMORS[0][0], melee: 7, ranged: 6 },
+    inventory: "", notes: "", hp: null, sta: null, stress: null, stressMax: 3, lp: 0, color: COLORS[Math.floor(Math.random() * COLORS.length)], createdAt: Date.now() };
+}
+function allSkills(c) { // [{key, name, attr, v, mark, custom}]
+  const out = [];
+  for (const [a] of ATTRS) {
+    for (const [k, n] of SKILLS[a]) { const s = c.skills?.[k] || {}; out.push({ key: k, name: n, attr: a, v: +s.v || 0, mark: !!s.mark }); }
+    (c.custom || []).forEach((s, i) => { if (s.attr === a && s.name) out.push({ key: "c" + i, name: s.name, attr: a, v: +s.v || 0, mark: !!s.mark, custom: i }); });
+  }
+  return out;
+}
+function points(c) {
+  const attrUsed = ATTRS.reduce((t, [a]) => t + (+c.attrs[a] || 0), 0);
+  const sk = allSkills(c);
+  const skillUsed = sk.reduce((t, s) => t + s.v, 0);
+  const traitCost = (c.traits || []).reduce((t, x) => t + (x.free && x.kind === "vorteil" ? 0 : (TRAIT_COST[x.kind]?.[x.size] || 0)), 0);
+  const warn = [];
+  for (const [a, n] of ATTRS) { const v = +c.attrs[a]; if (v < 1) warn.push(`${n} muss mindestens 1 sein.`); if (v > 6) warn.push(`${n} über 6 (bei Erstellung maximal 6).`); }
+  const fours = sk.filter(s => s.v >= 4), over = sk.filter(s => s.v > 4);
+  if (fours.length > 1) warn.push(`Nur eine Fertigkeit darf zu Beginn 4 sein (${fours.map(s => s.name).join(", ")}).`);
+  if (over.length) warn.push(`Fertigkeiten über 4: ${over.map(s => s.name).join(", ")}.`);
+  if ((c.traits || []).filter(x => x.free).length > 1) warn.push("Nur ein kleiner Vorteil ist kostenlos.");
+  if ((c.traits || []).some(x => x.free && (x.kind !== "vorteil" || x.size !== "klein"))) warn.push("Der kostenlose Vorteil muss ein kleiner Vorteil sein.");
+  return { attrUsed, skillUsed, traitCost, skillTotal: skillUsed + traitCost, warn };
+}
+
+// ===================== Hilfen =====================
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
+const rid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const initials = n => (String(n || "?").trim().split(/\s+/).map(w => w[0]).join("").slice(0, 2) || "?").toUpperCase();
+let toastT;
+function toast(m) { const t = $("#toast"); t.textContent = m; t.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("on"), 3200); }
+function modal(html, onOk) {
+  return new Promise(res => {
+    const m = $("#modal"), b = $("#modal-box"); b.innerHTML = html; m.classList.add("on");
+    const done = v => { m.classList.remove("on"); b.innerHTML = ""; res(v); };
+    b.querySelector("[data-ok]")?.addEventListener("click", () => done(onOk ? onOk(b) : true));
+    b.querySelector("[data-cancel]")?.addEventListener("click", () => done(null));
+    const inp = b.querySelector("input"); if (inp) { inp.focus(); inp.select(); inp.addEventListener("keydown", e => { if (e.key === "Enter") done(onOk ? onOk(b) : true); if (e.key === "Escape") done(null); }); }
+  });
+}
+window.uiPrompt = (msg, val = "") => modal(`<p>${esc(msg)}</p><input value="${esc(val)}"><div class="row" style="justify-content:flex-end;margin-top:12px"><button class="btn" data-cancel>Abbrechen</button><button class="btn pri" data-ok>OK</button></div>`, b => b.querySelector("input").value);
+const uiConfirm = (msg, ok = "OK") => modal(`<p>${esc(msg)}</p><div class="row" style="justify-content:flex-end"><button class="btn" data-cancel>Abbrechen</button><button class="btn pri" data-ok>${esc(ok)}</button></div>`).then(v => !!v);
+function writeErr(e) { console.error(e); toast("Speichern fehlgeschlagen: " + (e?.message || e)); }
+function setPath(o, path, v) { const k = path.split("."); let t = o; for (let i = 0; i < k.length - 1; i++) { if (typeof t[k[i]] !== "object" || t[k[i]] === null) t[k[i]] = {}; t = t[k[i]]; } t[k[k.length - 1]] = v; }
+
+// ===================== Zustand =====================
+let DB, UID, MYNAME = "";
+const S = { view: "home", myChars: {}, games: {}, edit: null, editId: null, G: null };
+let unsubHome = [];
+const charPath = (owner, id) => `chars/${owner}/c/${id}`;
+
+async function boot() {
+  const api = { db: await claude.use("db"), user: await claude.use("user") };
+  DB = api.db; UID = await api.user.id();
+  MYNAME = window.__zkName ? window.__zkName() : "";
+  if (!MYNAME) await askName(true);
+  renderWho();
+  unsubHome.push(DB.collection(`chars/${UID}/c`).onSnapshot(s => { S.myChars = Object.fromEntries(s.docs.map(d => [d.id, d.data()])); if (S.view === "home") render(); }, writeErr));
+  unsubHome.push(DB.collection("games").onSnapshot(s => { S.games = Object.fromEntries(s.docs.map(d => [d.id, d.data()])); if (S.view === "home") render(); }, writeErr));
+  const h = new URLSearchParams(location.hash.slice(1));
+  if (h.get("runde")) openGame(h.get("runde")); else render();
+}
+async function askName(first) {
+  let n = "";
+  while (!n) { n = ((await uiPrompt(first ? "Willkommen am Spieltisch! Wie sollen dich die anderen sehen? (Dein Name)" : "Dein Name", MYNAME)) || "").trim(); if (!first && !n) return; }
+  MYNAME = n.slice(0, 40); if (window.__zkSetName) await window.__zkSetName(MYNAME);
+  renderWho();
+  if (S.G?.members?.[UID]) DB.doc(`games/${S.G.id}/members/${UID}`).update({ name: MYNAME }).catch(() => {});
+}
+function renderWho() { $("#who").innerHTML = `Du spielst als <b>${esc(MYNAME || "?")}</b> · <button onclick="askName(false)">ändern</button>`; }
+function go(v) { if (v === "home") { closeGame(); S.edit = null; history.replaceState(null, "", location.pathname); } S.view = v; render(); window.scrollTo(0, 0); }
+function render() {
+  const app = $("#app");
+  if (S.view === "home") app.innerHTML = homeHTML();
+  else if (S.view === "edit") { app.innerHTML = editHTML(); renderSum(); }
+  else if (S.view === "view") app.innerHTML = `<div class="row" style="margin-bottom:12px"><button class="btn" onclick="go('home')">← Zurück</button><button class="btn" onclick="editChar('${S.viewId}')">Bearbeiten</button></div>` + sheetHTML(S.myChars[S.viewId] || newChar(), { owner: UID, id: S.viewId, own: true });
+  else if (S.view === "game") renderGame();
+}
+
+// ===================== Startseite =====================
+function homeHTML() {
+  const chars = Object.entries(S.myChars).sort((a, b) => (b[1].updatedAt || 0) - (a[1].updatedAt || 0));
+  const games = Object.entries(S.games).sort((a, b) => (b[1].createdAt || 0) - (a[1].createdAt || 0));
+  return `<div class="hero"><h1>Willkommen am Spieltisch</h1><p>Lege deine Charaktere an und tritt einer Spielrunde bei. Dort seht ihr alle Charakterbögen der Gruppe, würfelt gemeinsam und zeichnet zusammen auf dem Whiteboard.</p></div>
+  <div class="home">
+    <div class="card"><div class="row"><h2 class="grow">Meine Charaktere</h2><button class="btn" onclick="importChar()">Importieren</button><button class="btn pri" onclick="editChar()">+ Neuer Charakter</button></div>
+      <div class="list">${chars.length ? chars.map(([id, c]) => `<div class="item"><div class="av" style="--c:${esc(c.color)};width:38px;height:38px;font-size:16px">${esc(initials(c.name))}</div>
+        <div class="grow"><div class="t">${esc(c.name || "Unbenannt")}</div><div class="s">${esc(c.concept || "")} ${ATTRS.map(([a, n]) => `${n[0]}${c.attrs?.[a] ?? "?"}`).join(" · ")}</div></div>
+        <button class="btn sm" onclick="viewChar('${id}')">Ansehen</button><button class="btn sm" onclick="editChar('${id}')">Bearbeiten</button>
+        <button class="btn sm" title="Als JSON speichern" onclick="exportChar('${id}')">⇩</button><button class="btn sm danger" title="Löschen" onclick="delChar('${id}')">✕</button></div>`).join("")
+        : `<div class="empty">Noch keine Charaktere. Leg deinen ersten Überlebenden an.</div>`}</div>
+      <p class="small mute">Charaktere liegen auf dem Server und gehören deinem Browser. Auf einem anderen Gerät per Export/Import mitnehmen.</p></div>
+    <div class="card"><div class="row"><h2 class="grow">Spielrunden</h2><button class="btn pri" onclick="newGame()">+ Neue Runde</button></div>
+      <div class="list">${games.length ? games.map(([id, g]) => `<div class="item"><div class="grow"><div class="t">${esc(g.name || "Runde")}</div><div class="s">Spielleitung: ${esc(g.gmName || "?")}${g.gm === UID ? " (du)" : ""}</div></div>
+        <button class="btn sm pri" onclick="openGame('${id}')">Öffnen</button>${g.gm === UID ? `<button class="btn sm danger" title="Runde löschen" onclick="delGame('${id}')">✕</button>` : ""}</div>`).join("")
+        : `<div class="empty">Noch keine Runde. Wer die Runde anlegt, ist die Spielleitung.</div>`}</div></div>
+  </div>`;
+}
+async function newGame() {
+  const name = ((await uiPrompt("Name der Spielrunde", "Tag 1 nach dem Ausbruch")) || "").trim(); if (!name) return;
+  const id = "g" + rid();
+  try {
+    await DB.doc(`games/${id}`).set({ name: name.slice(0, 80), gm: UID, gmName: MYNAME, createdAt: Date.now() });
+    await DB.doc(`games/${id}/members/${UID}`).set({ role: "gm", name: MYNAME, color: "#e8a54b", joinedAt: Date.now() });
+    openGame(id);
+  } catch (e) { writeErr(e); }
+}
+async function delGame(id) {
+  if (!await uiConfirm(`Runde „${S.games[id]?.name}“ mit Whiteboard und Würfelprotokoll für alle löschen? Die Charaktere bleiben erhalten.`, "Löschen")) return;
+  for (const sub of ["members", "board", "tokens", "rolls"]) { const s = await DB.collection(`games/${id}/${sub}`).get(); for (const d of s.docs) if (!(sub === "members" && d.id === UID)) await DB.doc(`games/${id}/${sub}/${d.id}`).delete().catch(() => {}); }
+  await DB.doc(`games/${id}/members/${UID}`).delete().catch(() => {});
+  await DB.doc(`games/${id}`).delete().catch(writeErr);
+}
+
+// ===================== Charaktere: Verwaltung =====================
+function viewChar(id) { S.viewId = id; go("view"); }
+function editChar(id) {
+  S.editId = id || "c" + rid();
+  S.edit = id ? JSON.parse(JSON.stringify(S.myChars[id])) : newChar();
+  const d = newChar(); for (const k in d) if (S.edit[k] === undefined) S.edit[k] = d[k];
+  S.view = "edit"; render(); window.scrollTo(0, 0);
+}
+async function delChar(id) {
+  if (!await uiConfirm(`„${S.myChars[id]?.name || "Unbenannt"}“ endgültig löschen?`, "Löschen")) return;
+  DB.doc(charPath(UID, id)).delete().catch(writeErr);
+}
+function exportChar(id) {
+  const c = S.myChars[id]; const blob = new Blob([JSON.stringify({ zombiekalypse: 1, char: c }, null, 2)], { type: "application/json" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = (c.name || "charakter").replace(/[^\wäöüÄÖÜß-]+/g, "_") + ".json"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+function importChar() {
+  const inp = document.createElement("input"); inp.type = "file"; inp.accept = ".json,application/json";
+  inp.onchange = async () => {
+    try { const j = JSON.parse(await inp.files[0].text()); const c = j.char || j; if (!c.attrs) throw new Error("Keine Charakterdatei"); c.updatedAt = Date.now(); await DB.doc(charPath(UID, "c" + rid())).set(c); toast("Charakter importiert."); }
+    catch (e) { toast("Import fehlgeschlagen: " + e.message); }
+  };
+  inp.click();
+}
+
+// ===================== Charakter-Editor =====================
+let saveT = null;
+function scheduleSave() {
+  clearTimeout(saveT); const el = $("#saved"); if (el) el.textContent = "Ungespeichert …";
+  saveT = setTimeout(saveEdit, 700);
+}
+async function saveEdit() {
+  clearTimeout(saveT); if (!S.edit) return;
+  S.edit.updatedAt = Date.now();
+  try { await DB.doc(charPath(UID, S.editId)).set(S.edit); const el = $("#saved"); if (el) el.textContent = "Gespeichert ✓"; } catch (e) { writeErr(e); }
+}
+function edInput(el) {
+  const k = el.dataset.k; let v = el.type === "checkbox" ? el.checked : el.value;
+  if (el.dataset.num !== undefined) v = v === "" ? 0 : Number(v);
+  setPath(S.edit, k, v); scheduleSave(); renderSum();
+}
+function edStep(a, d) { S.edit.attrs[a] = Math.max(1, (+S.edit.attrs[a] || 1) + d); $(`#av-${a}`).textContent = S.edit.attrs[a]; scheduleSave(); renderSum(); }
+function edList(kind, op, i) {
+  const c = S.edit;
+  if (op === "add") {
+    if (kind === "traits") c.traits.push({ name: "", kind: "vorteil", size: "klein", free: false });
+    if (kind === "weapons") c.weapons.push({ name: "", dmg: 2, note: "" });
+    if (kind === "custom") c.custom.push({ name: "Wissenschaft: ", attr: "hirn", v: 1, mark: false });
+  } else c[kind].splice(i, 1);
+  scheduleSave(); render();
+}
+function edWeaponName(el, i) {
+  const w = WEAPONS.find(x => x[0] === el.value);
+  S.edit.weapons[i].name = el.value;
+  if (w) { S.edit.weapons[i].dmg = w[1]; S.edit.weapons[i].note = w[2]; render(); }
+  scheduleSave();
+}
+function edArmor(el) {
+  const a = ARMORS.find(x => x[0] === el.value);
+  S.edit.armor.name = el.value;
+  if (a) { S.edit.armor.melee = a[1]; S.edit.armor.ranged = a[2]; render(); }
+  scheduleSave();
+}
+const opt = (list, v) => list.map(([k, n]) => `<option value="${esc(k)}" ${String(k) === String(v) ? "selected" : ""}>${esc(n)}</option>`).join("");
+const inp = (k, v, ph = "", extra = "") => `<input data-k="${k}" value="${esc(v)}" placeholder="${esc(ph)}" oninput="edInput(this)" ${extra}>`;
+function editHTML() {
+  const c = S.edit;
+  return `<div class="row" style="margin-bottom:12px"><button class="btn" onclick="saveEdit().then(()=>go('home'))">← Fertig</button><h1 class="grow">${S.myChars[S.editId] ? "Charakter bearbeiten" : "Neuer Charakter"}</h1><span class="saved" id="saved"></span></div>
+  <div class="ed"><div>
+    <section class="card"><h3>Wer bist du?</h3><p class="small mute" style="margin-top:4px">Name, Beruf, Eigenarten. Für den Anfang eignen sich Stereotype: Haudrauf, Forscherin, „Kumpel von nebenan“.</p>
+      <div class="grid2"><label class="f"><span>Name</span>${inp("name", c.name, "z. B. Johnny Miller")}</label><label class="f"><span>Beruf / Konzept</span>${inp("concept", c.concept, "z. B. Mechaniker")}</label>
+      <label class="f"><span>Alter</span>${inp("age", c.age)}</label><label class="f"><span>Geschlecht</span>${inp("gender", c.gender)}</label>
+      <label class="f"><span>Statur</span>${inp("build", c.build)}</label><label class="f"><span>Farbe (Figur auf dem Whiteboard)</span><input type="color" data-k="color" value="${esc(c.color)}" oninput="edInput(this)" style="height:38px;padding:3px"></label></div>
+      <label class="f" style="margin-top:10px"><span>Beschreibung, Stimme, Eigenarten</span><textarea data-k="desc" oninput="edInput(this)">${esc(c.desc)}</textarea></label></section>
+
+    <section class="card"><div class="row"><h3 class="grow">Attribute</h3><label class="f" style="flex-direction:row;align-items:center;gap:6px"><span>Punkte</span><select data-k="attrBudget" data-num onchange="edInput(this)" style="width:auto">${opt(ATTR_BUDGETS, c.attrBudget)}</select></label></div>
+      <p class="small mute" style="margin:4px 0 8px">Mindestens 1, zu Beginn höchstens 6.</p>
+      <div class="grid4">${ATTRS.map(([a, n]) => `<div class="attrbox"><b>${n}</b><div class="step"><button onclick="edStep('${a}',-1)">−</button><span class="v" id="av-${a}">${c.attrs[a]}</span><button onclick="edStep('${a}',1)">+</button></div></div>`).join("")}</div></section>
+
+    <section class="card"><div class="row"><h3 class="grow">Fertigkeiten</h3><label class="f" style="flex-direction:row;align-items:center;gap:6px"><span>Punkte</span><select data-k="skillBudget" data-num onchange="edInput(this)" style="width:auto">${opt(SKILL_BUDGETS, c.skillBudget)}</select></label></div>
+      <p class="small mute" style="margin:4px 0 8px">Zu Beginn höchstens 3, eine einzige (Hauptbeschäftigung) darf 4 sein. Würfelpool = Attribut + Fertigkeit.</p>
+      <div class="skills">${ATTRS.map(([a, n]) => `<div class="skgrp"><h3>${n}</h3>${SKILLS[a].map(([k, sn, d]) => `<div class="sk"><div class="n">${sn}<small>${d}</small></div><select data-k="skills.${k}.v" data-num onchange="edInput(this)">${[0, 1, 2, 3, 4, 5, 6, 7, 8].map(v => `<option ${(+c.skills[k]?.v || 0) === v ? "selected" : ""}>${v}</option>`).join("")}</select></div>`).join("")}</div>`).join("")}</div>
+      <h3 style="margin:14px 0 6px">Spezialisierungen &amp; eigene Fertigkeiten</h3><p class="small mute" style="margin:0 0 6px">z. B. „Wissenschaft: Chemie“. Wenn unklar, welches Attribut passt, entscheidet die Spielleitung.</p>
+      <div class="lst">${c.custom.map((s, i) => `<div class="lr cs">${inp(`custom.${i}.name`, s.name)}<select data-k="custom.${i}.attr" onchange="edInput(this)">${opt(ATTRS, s.attr)}</select><select data-k="custom.${i}.v" data-num onchange="edInput(this)">${[0, 1, 2, 3, 4, 5, 6, 7, 8].map(v => `<option ${(+s.v || 0) === v ? "selected" : ""}>${v}</option>`).join("")}</select><button class="x" onclick="edList('custom','del',${i})">✕</button></div>`).join("")}</div>
+      <button class="btn sm" style="margin-top:8px" onclick="edList('custom','add')">+ Fertigkeit</button></section>
+
+    <section class="card"><h3>Vor- &amp; Nachteile</h3><p class="small mute" style="margin:4px 0 8px">Mit der Spielleitung absprechen. Kleiner Vorteil/Nachteil: ±1 Würfel in passenden Situationen, großer ±2. Würfe mit Nachteil sind immer Stresswürfe. Ein kleiner Vorteil ist kostenlos. Kosten: großer Vorteil 5, kleiner Nachteil +2, großer Nachteil +5 Fertigkeitspunkte (kleiner Vorteil: 2, Annahme).</p>
+      <div class="lst">${c.traits.map((t, i) => `<div class="lr tr">${inp(`traits.${i}.name`, t.name, t.kind === "vorteil" ? "z. B. Furchtlos" : "z. B. Spinnenphobie")}<select data-k="traits.${i}.kind" onchange="edInput(this);render()">${opt([["vorteil", "Vorteil"], ["nachteil", "Nachteil"]], t.kind)}</select><select data-k="traits.${i}.size" onchange="edInput(this);render()">${opt([["klein", "klein"], ["gross", "groß"]], t.size)}</select><label class="small mute" title="Der kostenlose Start-Vorteil"><input type="checkbox" data-k="traits.${i}.free" ${t.free ? "checked" : ""} onchange="edInput(this)"> gratis</label><button class="x" onclick="edList('traits','del',${i})">✕</button></div>`).join("")}</div>
+      <button class="btn sm" style="margin-top:8px" onclick="edList('traits','add')">+ Vor-/Nachteil</button></section>
+
+    <section class="card"><h3>Ausrüstung</h3>
+      <datalist id="wlist">${WEAPONS.map(w => `<option value="${esc(w[0])}">`).join("")}</datalist>
+      <datalist id="alist">${ARMORS.map(w => `<option value="${esc(w[0])}">`).join("")}</datalist>
+      <p class="small mute" style="margin:6px 0">Waffen (Schaden in W10; aus der Liste wählen füllt die Werte aus)</p>
+      <div class="lst">${c.weapons.map((w, i) => `<div class="lr wp"><input list="wlist" value="${esc(w.name)}" placeholder="Waffe" oninput="edWeaponName(this,${i})"><input type="number" min="0" max="20" data-k="weapons.${i}.dmg" data-num value="${+w.dmg || 0}" oninput="edInput(this)" title="Schadenswürfel">${inp(`weapons.${i}.note`, w.note, "Besonderheiten")}<button class="x" onclick="edList('weapons','del',${i})">✕</button></div>`).join("")}</div>
+      <button class="btn sm" style="margin-top:8px" onclick="edList('weapons','add')">+ Waffe</button>
+      <p class="small mute" style="margin:12px 0 6px">Rüstung (Schutzwert: Schadenswürfel brauchen mindestens diesen Wert)</p>
+      <div class="lr wp" style="grid-template-columns:minmax(0,1.6fr) 80px 80px"><input list="alist" value="${esc(c.armor.name)}" oninput="edArmor(this)"><input type="number" min="2" max="11" data-k="armor.melee" data-num value="${c.armor.melee}" oninput="edInput(this)" title="Nahkampfschutz"><input type="number" min="2" max="11" data-k="armor.ranged" data-num value="${c.armor.ranged}" oninput="edInput(this)" title="Fernkampfschutz"></div>
+      <div class="row small mute" style="justify-content:flex-end;gap:38px;padding-right:14px"><span>Nahkampf</span><span>Fernkampf</span></div>
+      <label class="f" style="margin-top:10px"><span>Inventar &amp; Vorräte</span><textarea data-k="inventory" oninput="edInput(this)">${esc(c.inventory)}</textarea></label></section>
+
+    <section class="card"><h3>Entwicklung &amp; Notizen</h3>
+      <div class="grid2" style="margin-top:8px"><label class="f"><span>Stresswürfel (Pool)</span><input type="number" min="0" max="20" data-k="stressMax" data-num value="${c.stressMax}" oninput="edInput(this)"></label><label class="f"><span>Lernpunkte</span><input type="number" min="0" data-k="lp" data-num value="${c.lp}" oninput="edInput(this)"></label></div>
+      <p class="small mute">Steigern: Attribut = neuer Wert ×3 · Fertigkeit = neuer Wert ×1 · neue Fertigkeit (Wert 1) = 3 · Stresswürfel = neuer Wert ×5.</p>
+      <label class="f"><span>Notizen, Ziele, Hintergrund</span><textarea data-k="notes" oninput="edInput(this)">${esc(c.notes)}</textarea></label></section>
+  </div>
+  <aside class="card sum" id="sum"></aside></div>`;
+}
+function renderSum() {
+  const el = $("#sum"); if (!el || !S.edit) return;
+  const c = S.edit, p = points(c);
+  const aLeft = c.attrBudget - p.attrUsed, sLeft = c.skillBudget - p.skillTotal;
+  el.innerHTML = `<h3>Übersicht</h3>
+    <div class="line"><span>Attributpunkte</span><b class="${aLeft < 0 ? "bad" : aLeft === 0 ? "good" : "warn"}">${p.attrUsed} / ${c.attrBudget}</b></div>
+    <div class="line"><span>Fertigkeitspunkte</span><b class="${sLeft < 0 ? "bad" : sLeft === 0 ? "good" : "warn"}">${p.skillTotal} / ${c.skillBudget}</b></div>
+    ${p.traitCost ? `<div class="line small mute"><span>davon Vor-/Nachteile</span><span>${p.traitCost > 0 ? "+" : ""}${p.traitCost}</span></div>` : ""}
+    <div class="line"><span>Lebenspunkte <small class="mute">5+Körper+Hirn</small></span><b>${hpMax(c)}</b></div>
+    <div class="line"><span>Ausdauer <small class="mute">5+Willen+Herz</small></span><b>${staMax(c)}</b></div>
+    <div class="line"><span>Initiative <small class="mute">Körper+Willen</small></span><b>${iniBase(c)} + 2W10</b></div>
+    <div class="line"><span>Stresswürfel</span><b>${c.stressMax}</b></div>
+    ${p.warn.length || aLeft || sLeft ? `<ul>${aLeft > 0 ? `<li class="warn">Noch ${aLeft} Attributpunkte frei.</li>` : ""}${aLeft < 0 ? `<li class="bad">${-aLeft} Attributpunkte zu viel.</li>` : ""}${sLeft > 0 ? `<li class="warn">Noch ${sLeft} Fertigkeitspunkte frei.</li>` : ""}${sLeft < 0 ? `<li class="bad">${-sLeft} Fertigkeitspunkte zu viel.</li>` : ""}${p.warn.map(w => `<li class="bad">${esc(w)}</li>`).join("")}</ul>` : `<p class="good small">Alles im Rahmen der Erstellungsregeln.</p>`}
+    <p class="small mute">Die Prüfung ist eine Hilfe. Nach der Erstellung darfst du über die Grenzen steigern.</p>`;
+}
+
+// ===================== Charakterbogen =====================
+function sheetHTML(c, o = {}) {
+  const own = !!o.own, ref = `'${o.owner}','${o.id}'`;
+  const H = hpMax(c), A = staMax(c), hp = cur(c, "hp", H), sta = cur(c, "sta", A), st = cur(c, "stress", c.stressMax);
+  const sk = allSkills(c);
+  const resBtn = (k, d) => own ? `<button onclick="charRes(${ref},'${k}',${d})">${d < 0 ? "−" : "+"}</button>` : "";
+  return `<div class="sheet">
+    <div class="sh-head"><div class="av" style="--c:${esc(c.color)}">${esc(initials(c.name))}</div><div class="grow"><h2>${esc(c.name || "Unbenannt")}</h2><p>${esc([c.concept, c.age && c.age + " J.", c.gender, c.build].filter(Boolean).join(" · "))}${o.player ? ` · gespielt von <b>${esc(o.player)}</b>` : ""}</p></div></div>
+    <div class="res">
+      <div class="rb" style="--c:var(--blood)"><div class="l"><span>Lebenspunkte</span><span>max ${H}</span></div><div class="v">${resBtn("hp", -1)}<span class="${hp <= 0 ? "bad" : ""}">${hp}</span>${resBtn("hp", 1)}</div><div class="bar"><i style="width:${Math.max(0, Math.min(100, hp / H * 100))}%"></i></div>${hp < 0 ? `<div class="small bad">Tot</div>` : hp === 0 ? `<div class="small bad">Bewusstlos, dem Tode nahe</div>` : ""}</div>
+      <div class="rb" style="--c:var(--blue)"><div class="l"><span>Ausdauer</span><span>max ${A}</span></div><div class="v">${resBtn("sta", -1)}<span>${sta}</span>${resBtn("sta", 1)}</div><div class="bar"><i style="width:${Math.max(0, Math.min(100, sta / A * 100))}%"></i></div>${sta <= 0 ? `<div class="small warn">Kann jederzeit umkippen</div>` : ""}</div>
+      <div class="rb"><div class="l"><span>Stresswürfel</span><span>${st} / ${c.stressMax}</span></div><div class="v">${resBtn("stress", -1)}<span class="dots">${Array.from({ length: c.stressMax }, (_, i) => `<i class="${i < st ? "on" : ""}"></i>`).join("")}</span>${resBtn("stress", 1)}</div></div>
+      <div class="rb"><div class="l"><span>Initiative</span></div><div class="v">${iniBase(c)} <span class="small mute">+ 2W10</span></div></div>
+      <div class="rb"><div class="l"><span>Rüstung</span></div><div class="small"><b>${esc(c.armor?.name || "–")}</b><br>Nahkampf ${c.armor?.melee ?? 7}+ · Fernkampf ${c.armor?.ranged ?? 6}+</div></div>
+    </div>
+    <div class="sh-attrs">${ATTRS.map(([a, n]) => `<div class="sa"><div class="h"><b>${n}</b><span>${c.attrs[a]}</span></div>
+      ${sk.filter(s => s.attr === a).map(s => `<div class="s ${s.v ? "" : "none"}"><span class="mk">${own && s.v ? `<input type="checkbox" title="Erfolgreich eingesetzt (für Steigerung markieren)" ${s.mark ? "checked" : ""} onchange="charMark(${ref},'${s.custom !== undefined ? "c" + s.custom : s.key}',this.checked)">` : s.mark ? "☑" : ""}${esc(s.name)}</span><b>${s.v ? s.v + " <span class='mute small'>(" + (s.v + (+c.attrs[a] || 0)) + "W)</span>" : "–"}</b></div>`).join("")}</div>`).join("")}</div>
+    ${(c.traits || []).some(t => t.name) ? `<div><h3 style="margin-bottom:6px">Vor- &amp; Nachteile</h3><div class="tags">${c.traits.filter(t => t.name).map(t => `<span class="tag ${t.kind === "vorteil" ? "v" : "n"}">${t.kind === "vorteil" ? "+" : "−"} ${esc(t.name)} <small class="mute">(${t.size === "gross" ? "groß, ±2W" : "klein, ±1W"})</small></span>`).join("")}</div></div>` : ""}
+    ${(c.weapons || []).length ? `<div><h3 style="margin-bottom:6px">Waffen</h3><table class="wt"><tr><th>Waffe</th><th>Schaden</th><th>Besonderheiten</th></tr>${c.weapons.map(w => `<tr><td>${esc(w.name)}</td><td><b>${+w.dmg || 0}W</b></td><td class="mute">${esc(w.note)}</td></tr>`).join("")}</table></div>` : ""}
+    ${c.inventory ? `<div><h3 style="margin-bottom:4px">Inventar</h3><div class="pre">${esc(c.inventory)}</div></div>` : ""}
+    ${c.desc || c.notes ? `<details><summary class="mute" style="cursor:pointer">Beschreibung &amp; Notizen</summary><div class="pre" style="margin-top:6px">${esc(c.desc)}${c.desc && c.notes ? "\n\n" : ""}${esc(c.notes)}</div></details>` : ""}
+    <div class="small mute">Lernpunkte: ${+c.lp || 0}</div>
+  </div>`;
+}
+async function charRes(owner, id, k, d) {
+  if (owner !== UID) return;
+  const c = owner === UID && S.myChars[id] ? S.myChars[id] : S.G?.chars?.[`${owner}/${id}`]; if (!c) return;
+  const max = k === "hp" ? hpMax(c) : k === "sta" ? staMax(c) : c.stressMax;
+  const v = Math.max(k === "hp" ? -1 : 0, Math.min(max, cur(c, k, max) + d));
+  c[k] = v; if (S.G?.chars?.[`${owner}/${id}`]) S.G.chars[`${owner}/${id}`][k] = v;
+  render();
+  DB.doc(charPath(owner, id)).update({ [k]: v }).catch(writeErr);
+}
+function charMark(owner, id, key, on) {
+  if (owner !== UID) return;
+  const path = key.startsWith("c") && /^c\d+$/.test(key) ? null : `skills.${key}.mark`;
+  const c = S.myChars[id]; if (!c) return;
+  if (path) { c.skills[key] = { ...(c.skills[key] || {}), mark: on }; DB.doc(charPath(owner, id)).update({ skills: { [key]: { mark: on } } }).catch(writeErr); }
+  else { const i = +key.slice(1); c.custom[i].mark = on; DB.doc(charPath(owner, id)).update({ custom: c.custom }).catch(writeErr); }
+}
+
+// ===================== Spielrunde =====================
+let gUnsub = [];
+function closeGame() { gUnsub.forEach(u => u()); gUnsub = []; if (S.G) Object.values(S.G.charSubs).forEach(u => u()); S.G = null; }
+async function openGame(id) {
+  closeGame();
+  S.G = { id, game: null, members: {}, chars: {}, charSubs: {}, board: {}, tokens: {}, rolls: [], tab: "party", tool: "pen", color: "#9fd24a", width: 4, fill: false, zoom: 1, sel: null, stamp: "🧟",
+    roll: { what: "", state: "normal", mod: 0, sd: 0, wp: 0, armor: 7, extra: 0, free: 3 } };
+  S.view = "game"; history.replaceState(null, "", "#runde=" + id);
+  const G = S.G;
+  gUnsub.push(DB.doc(`games/${id}`).onSnapshot(s => {
+    if (S.G !== G) return;
+    if (!s.exists) { toast("Diese Runde gibt es nicht (mehr)."); go("home"); return; }
+    G.game = s.data(); render();
+  }, writeErr));
+  gUnsub.push(DB.collection(`games/${id}/members`).onSnapshot(s => {
+    if (S.G !== G) return;
+    G.members = Object.fromEntries(s.docs.map(d => [d.id, d.data()]));
+    syncCharSubs(); if (G.tab === "board") wbRender(); else render();
+  }, writeErr));
+  gUnsub.push(DB.collection(`games/${id}/board`).onSnapshot(s => { if (S.G !== G) return; G.board = Object.fromEntries(s.docs.map(d => [d.id, d.data()])); if (G.tab === "board" && !WD) wbRender(); }, writeErr));
+  gUnsub.push(DB.collection(`games/${id}/tokens`).onSnapshot(s => { if (S.G !== G) return; G.tokens = Object.fromEntries(s.docs.map(d => [d.id, d.data()])); if (G.tab === "board" && !WD) wbRender(); }, writeErr));
+  gUnsub.push(DB.collection(`games/${id}/rolls`).orderBy("ts", "desc").limit(60).onSnapshot(s => { if (S.G !== G) return; G.rolls = s.docs.map(d => ({ id: d.id, ...d.data() })); renderLog(); }, writeErr));
+  render();
+}
+function syncCharSubs() {
+  const G = S.G, want = new Set();
+  for (const m of Object.values(G.members)) if (m.charId && m.charOwner) want.add(`${m.charOwner}/${m.charId}`);
+  for (const k of Object.keys(G.charSubs)) if (!want.has(k)) { G.charSubs[k](); delete G.charSubs[k]; delete G.chars[k]; }
+  for (const k of want) if (!G.charSubs[k]) {
+    const [o, c] = k.split("/");
+    G.charSubs[k] = DB.doc(charPath(o, c)).onSnapshot(s => { if (S.G !== G) return; if (s.exists) G.chars[k] = s.data(); else delete G.chars[k]; if (G.tab === "board") wbRender(); else render(); if (o === UID) renderRoller(); }, () => {});
+  }
+}
+const isGM = () => S.G?.game?.gm === UID;
+const myMember = () => S.G?.members?.[UID];
+const myChar = () => { const m = myMember(); return m?.charId ? (S.G.chars[`${m.charOwner}/${m.charId}`] || S.myChars[m.charId]) : null; };
+async function joinGame(charId) {
+  const m = myMember(), G = S.G;
+  const data = { role: m?.role || "player", name: MYNAME, color: charId ? (S.myChars[charId]?.color || "#9fd24a") : (m?.color || "#e8a54b"), charOwner: charId ? UID : null, charId: charId || null, joinedAt: m?.joinedAt || Date.now() };
+  try { await DB.doc(`games/${G.id}/members/${UID}`).set(data); } catch (e) { writeErr(e); }
+}
+async function leaveGame() {
+  if (!await uiConfirm("Die Runde verlassen? Dein Charakter bleibt erhalten.", "Verlassen")) return;
+  await DB.doc(`games/${S.G.id}/members/${UID}`).delete().catch(() => {}); go("home");
+}
+async function kick(uid) {
+  if (!await uiConfirm(`${S.G.members[uid]?.name || "Diese Person"} aus der Runde entfernen?`, "Entfernen")) return;
+  DB.doc(`games/${S.G.id}/members/${uid}`).delete().catch(writeErr);
+}
+function setTab(t) { S.G.tab = t; S.G.sel = null; render(); }
+function renderGame() {
+  const G = S.G, app = $("#app");
+  if (!G.game) { app.innerHTML = `<p class="mute">Lade Runde …</p>`; return; }
+  const m = myMember(), gm = isGM();
+  const members = Object.entries(G.members).sort((a, b) => (a[1].role === "gm" ? -1 : 0) - (b[1].role === "gm" ? -1 : 0) || (a[1].joinedAt || 0) - (b[1].joinedAt || 0));
+  const myChars = Object.entries(S.myChars);
+  let main;
+  if (G.tab === "party") {
+    const withChar = members.filter(([, x]) => x.charId);
+    main = `<div class="party">${withChar.length ? withChar.map(([u, x]) => { const c = G.chars[`${x.charOwner}/${x.charId}`]; return c ? sheetHTML(c, { owner: x.charOwner, id: x.charId, own: x.charOwner === UID, player: x.name }) : `<div class="card mute">Lade Charakter von ${esc(x.name)} …</div>`; }).join("")
+      : `<div class="empty">Noch niemand hat einen Charakter mitgebracht.</div>`}</div>`;
+  } else main = wbShell();
+  app.innerHTML = `<div class="tbl-head"><button class="btn" onclick="go('home')">←</button><h1 class="grow" style="min-width:200px">${esc(G.game.name)}</h1>
+      <div class="chips">${members.map(([u, x]) => `<span class="chip ${x.role === "gm" ? "gm" : ""}" title="${x.role === "gm" ? "Spielleitung" : "Spieler/in"}"><i style="--c:${esc(x.color)}"></i>${esc(x.name || "?")}${x.role === "gm" ? " (SL)" : ""}${gm && u !== UID ? ` <button class="x" style="font-size:13px;padding:0 0 0 4px" title="Entfernen" onclick="kick('${u}')">✕</button>` : ""}</span>`).join("")}</div></div>
+    ${!m ? `<div class="card" style="margin-bottom:12px"><div class="row"><b class="grow">Du bist noch nicht in dieser Runde.</b>${myChars.length ? `<select id="joinsel" style="width:auto">${myChars.map(([id, c]) => `<option value="${id}">${esc(c.name || "Unbenannt")}</option>`).join("")}</select><button class="btn pri" onclick="joinGame($('#joinsel').value)">Mit Charakter beitreten</button>` : `<button class="btn pri" onclick="editChar()">Erst Charakter anlegen</button>`}<button class="btn" onclick="joinGame(null)">Ohne Charakter zuschauen</button></div></div>`
+      : `<div class="row small" style="margin-bottom:10px"><span class="mute">${m.role === "gm" ? "Du leitest diese Runde." : "Dein Charakter:"}</span><select style="width:auto;padding:4px 8px" onchange="joinGame(this.value||null)"><option value="">– keiner –</option>${myChars.map(([id, c]) => `<option value="${id}" ${m.charId === id ? "selected" : ""}>${esc(c.name || "Unbenannt")}</option>`).join("")}</select>${m.charId ? `<button class="btn sm" onclick="editChar('${m.charId}')">Bogen bearbeiten</button>` : ""}<span class="grow"></span>${m.role !== "gm" ? `<button class="btn sm" onclick="leaveGame()">Runde verlassen</button>` : ""}<button class="btn sm" onclick="copyLink()">Link kopieren</button></div>`}
+    <div class="tbl"><div><div class="tabs"><button class="${G.tab === "party" ? "on" : ""}" onclick="setTab('party')">Charaktere</button><button class="${G.tab === "board" ? "on" : ""}" onclick="setTab('board')">Whiteboard</button></div>${main}</div>
+      <aside class="side"><div class="card roller" id="roller"></div><div class="card" style="display:flex;flex-direction:column;min-height:0;flex:1"><div class="row" style="margin-bottom:8px"><h3 class="grow">Würfelprotokoll</h3>${gm ? `<button class="btn sm" onclick="clearLog()">Leeren</button>` : ""}</div><div class="log" id="log"></div></div></aside></div>`;
+  if (G.tab === "board") wbRender();
+  renderRoller(); renderLog();
+}
+function copyLink() { const u = location.href; (navigator.clipboard?.writeText(u) || Promise.reject()).then(() => toast("Link zur Runde kopiert."), () => uiPrompt("Link zur Runde", u)); }
+
+// ===================== Würfel =====================
+const d10 = () => { const a = new Uint32Array(1); crypto.getRandomValues(a); return (a[0] % 10) + 1; };
+function evalPool(dice, { stressy, attrOnly, ruhe }) {
+  let succ = 0, ones = 0;
+  for (const d of dice) { if (d >= 7) succ += (d === 10 && stressy && !attrOnly) ? 2 : 1; if (d === 1 && stressy && !ruhe) ones++; }
+  const crit = stressy && !ruhe && ones > succ;
+  return { succ, ones, net: Math.max(0, succ - ones), crit };
+}
+function rollOptions(c) {
+  const o = [];
+  if (!c) return o;
+  for (const s of allSkills(c)) if (s.v) o.push([`s:${s.custom !== undefined ? "c" + s.custom : s.key}`, `${s.name} (${ATTR_NAME[s.attr]} ${c.attrs[s.attr]} + ${s.v} = ${c.attrs[s.attr] + s.v}W)`]);
+  for (const [a, n] of ATTRS) o.push([`a:${a}`, `Nur ${n} (${c.attrs[a]}W, ohne Fertigkeit)`]);
+  return o;
+}
+function renderRoller() {
+  const el = $("#roller"); if (!el || !S.G) return;
+  const R = S.G.roll, c = myChar(), opts = rollOptions(c);
+  if (c && !opts.some(o => o[0] === R.what)) R.what = opts[0]?.[0] || "";
+  const st = c ? cur(c, "stress", c.stressMax) : 0;
+  if (R.sd > st) R.sd = st;
+  el.innerHTML = `<h3 style="margin-bottom:8px">Würfeln${c ? ` als ${esc(c.name)}` : ""}</h3>
+    ${c ? `<label class="f">Probe<select onchange="S.G.roll.what=this.value">${opt(opts, R.what)}</select></label>` : `<label class="f">Anzahl W10 (freier Wurf)<input type="number" min="1" max="40" value="${R.free}" oninput="S.G.roll.free=+this.value"></label>`}
+    <label class="f">Zustand<div class="seg">${STATES.map(([k, n]) => `<button class="${R.state === k ? "on" : ""} ${k === "stress" ? "st" : k === "krise" ? "kr" : ""}" onclick="S.G.roll.state='${k}';renderRoller()">${n}</button>`).join("")}</div></label>
+    <div class="row" style="gap:8px;align-items:flex-end">
+      <label class="f grow">Modifikator (W)<input type="number" min="-10" max="10" value="${R.mod}" oninput="S.G.roll.mod=+this.value" title="z. B. Vorteil +1, Nachteil −1, hastig −1, gezielt +1"></label>
+      ${c ? `<label class="f grow">Stresswürfel (${R.state === "krise" ? "alle" : st + " übrig"})<input type="number" min="0" max="${st}" value="${R.state === "krise" ? c.stressMax : R.sd}" ${R.state === "krise" || R.state === "ruhe" ? "disabled" : ""} oninput="S.G.roll.sd=Math.min(${st},Math.max(0,+this.value))"></label>` : ""}</div>
+    <div class="row"><button class="btn pri grow" onclick="doRoll()">🎲 Würfeln</button>${c ? `<button class="btn" title="2W10 + Körper + Willen" onclick="doIni()">Initiative</button>` : `<button class="btn" onclick="doIni()">2W10</button>`}</div>
+    <details style="margin-top:10px"><summary class="small" style="cursor:pointer">Schaden würfeln</summary><div style="margin-top:8px">
+      ${c && (c.weapons || []).length ? `<label class="f">Waffe<select onchange="S.G.roll.wp=+this.value">${c.weapons.map((w, i) => `<option value="${i}" ${R.wp === i ? "selected" : ""}>${esc(w.name || "Waffe")} (${+w.dmg || 0}W)</option>`).join("")}<option value="-1" ${R.wp === -1 ? "selected" : ""}>Andere (nur Zusatzwürfel)</option></select></label>` : ""}
+      <div class="row" style="gap:8px"><label class="f grow">${c && (c.weapons || []).length ? "Zusätzliche Erfolge" : "Schadenswürfel"}<input type="number" min="0" max="30" value="${R.extra}" oninput="S.G.roll.extra=+this.value"></label><label class="f grow">Rüstung des Ziels<select onchange="S.G.roll.armor=+this.value">${[5, 6, 7, 8, 9, 10].map(v => `<option value="${v}" ${R.armor === v ? "selected" : ""}>${v}+</option>`).join("")}</select></label></div>
+      <button class="btn" style="width:100%" onclick="doDmg()">Schaden würfeln</button></div></details>
+    <p class="small mute" style="margin:8px 0 0">Erfolg ab 7. Unter Stress/Krise zählt eine 10 doppelt (nicht bei reinen Attributwürfen) und jede 1 zieht einen Erfolg ab.</p>`;
+}
+async function postRoll(r) {
+  const G = S.G, c = myChar();
+  r.by = UID; r.who = c?.name || MYNAME; r.color = c?.color || myMember()?.color || "#9fd24a"; r.ts = Date.now();
+  try { await DB.doc(`games/${G.id}/rolls/r${r.ts.toString(36)}${Math.random().toString(36).slice(2, 5)}`).set(r); } catch (e) { writeErr(e); return; }
+  if (G.rolls.length >= 60) G.rolls.slice(50).forEach(x => DB.doc(`games/${G.id}/rolls/${x.id}`).delete().catch(() => {}));
+}
+function spendStress(n, toZero) {
+  const m = myMember(), c = myChar(); if (!c || !m?.charId) return;
+  const st = cur(c, "stress", c.stressMax), v = toZero ? 0 : Math.max(0, st - n);
+  if (v !== st) charRes(m.charOwner, m.charId, "stress", v - st);
+}
+function doRoll(reroll) {
+  const G = S.G, R = G.roll, c = myChar();
+  let base = 0, label = "Freier Wurf", attrOnly = false;
+  if (reroll) { base = reroll.base; label = reroll.label; attrOnly = reroll.attrOnly; }
+  else if (c) {
+    const [t, k] = R.what.split(":");
+    if (t === "a") { base = +c.attrs[k] || 0; label = `${ATTR_NAME[k]} (nur Attribut)`; attrOnly = true; }
+    else { const s = allSkills(c).find(x => (x.custom !== undefined ? "c" + x.custom : x.key) === k); if (!s) return; base = (+c.attrs[s.attr] || 0) + s.v; label = s.name; }
+  } else base = Math.max(1, R.free || 1);
+  const state = reroll ? reroll.state : R.state;
+  const st = c ? cur(c, "stress", c.stressMax) : 0;
+  const sd = reroll ? 0 : (!c || state === "ruhe") ? 0 : state === "krise" ? c.stressMax : Math.min(R.sd, st);
+  const n = Math.max(0, base + (reroll ? reroll.mod : R.mod)) + sd;
+  if (!n) { toast("Keine Würfel im Pool."); return; }
+  const dice = Array.from({ length: n }, d10);
+  const stressy = !!reroll || state === "stress" || state === "krise" || sd > 0;
+  const e = evalPool(dice, { stressy, attrOnly, ruhe: state === "ruhe" });
+  postRoll({ kind: "probe", label, state, dice, sd, base, mod: reroll ? reroll.mod : R.mod, attrOnly, stressy, ...e, reroll: !!reroll });
+  if (reroll) spendStress(1); else if (state === "krise") spendStress(0, true); else if (sd) spendStress(sd);
+  R.sd = 0; renderRoller();
+}
+function doReroll(id) {
+  const r = S.G.rolls.find(x => x.id === id), c = myChar(); if (!r || !c) return;
+  if (r.crit) { toast("Ein kritischer Misserfolg kann nicht wiederholt werden."); return; }
+  if (cur(c, "stress", c.stressMax) < 1) { toast("Keine Stresswürfel mehr übrig."); return; }
+  doRoll({ base: r.base + r.sd, label: r.label + " – Wiederholung", attrOnly: r.attrOnly, state: r.state === "krise" ? "krise" : "stress", mod: r.mod || 0 });
+}
+function doIni() {
+  const c = myChar(), dice = [d10(), d10()], b = c ? iniBase(c) : 0;
+  postRoll({ kind: "ini", label: "Initiative", dice, base: b, total: dice[0] + dice[1] + b });
+}
+function doDmg() {
+  const R = S.G.roll, c = myChar(), w = c?.weapons?.[R.wp];
+  const n = (w && R.wp >= 0 ? +w.dmg || 0 : 0) + (R.extra || 0);
+  if (!n) { toast("Keine Schadenswürfel."); return; }
+  const dice = Array.from({ length: n }, d10), hits = dice.filter(d => d >= R.armor).length;
+  postRoll({ kind: "dmg", label: `Schaden${w && R.wp >= 0 ? " – " + w.name : ""}`, dice, armor: R.armor, hits, extra: R.extra || 0 });
+}
+function diceHTML(r) {
+  return `<div class="dice">${r.dice.map((d, i) => {
+    let cl = "";
+    if (r.kind === "probe") { cl = d >= 7 ? (d === 10 && r.stressy && !r.attrOnly ? "ten" : "ok") : (d === 1 && r.stressy && r.state !== "ruhe" ? "one" : ""); if (i >= r.dice.length - (r.sd || 0)) cl += " sd"; }
+    else if (r.kind === "dmg") cl = d >= r.armor ? "ok" : "";
+    return `<span class="d ${cl}">${d}</span>`;
+  }).join("")}</div>`;
+}
+function renderLog() {
+  const el = $("#log"); if (!el || !S.G) return;
+  const last = S.G.rolls.find(r => r.by === UID);
+  el.innerHTML = S.G.rolls.length ? S.G.rolls.map(r => {
+    const t = new Date(r.ts).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+    let res = "";
+    if (r.kind === "probe") res = r.crit ? `<span class="res bad">Kritischer Misserfolg!</span>` : `<span class="res">${r.net} Erfolg${r.net === 1 ? "" : "e"}</span><span class="small mute">${r.succ} Erfolg${r.succ === 1 ? "" : "e"}${r.ones ? ` − ${r.ones}× die 1` : ""}</span>`;
+    else if (r.kind === "ini") res = `<span class="res">${r.total}</span><span class="small mute">${r.dice.join(" + ")} + ${r.base}</span>`;
+    else if (r.kind === "dmg") res = `<span class="res">${r.hits} Schaden</span><span class="small mute">${r.dice.length}W gegen ${r.armor}+${r.extra ? `, davon ${r.extra} durch Zusatzerfolge` : ""}</span>`;
+    const meta = r.kind === "probe" ? ` · ${STATES.find(s => s[0] === r.state)?.[1] || ""}${r.sd ? ` · ${r.sd} Stresswürfel` : ""}${r.mod ? ` · Mod ${r.mod > 0 ? "+" : ""}${r.mod}` : ""}` : "";
+    return `<div class="lg ${r.crit ? "crit" : ""}" style="--c:${esc(r.color)}"><span class="who">${esc(r.who)}</span> <span class="lab">· ${esc(r.label)}${meta} · ${t}</span>${res}${diceHTML(r)}
+      ${last && r.id === last.id && r.kind === "probe" && !r.crit && myChar() ? `<button class="btn sm" style="margin-top:6px" onclick="doReroll('${r.id}')">Wiederholen (1 Stresswürfel)</button>` : ""}</div>`;
+  }).join("") : `<div class="empty small">Noch keine Würfe.</div>`;
+}
+async function clearLog() {
+  if (!await uiConfirm("Würfelprotokoll für alle leeren?", "Leeren")) return;
+  for (const r of S.G.rolls) DB.doc(`games/${S.G.id}/rolls/${r.id}`).delete().catch(() => {});
+}
+
+// ===================== Whiteboard =====================
+const WB_W = 1600, WB_H = 1000;
+const WB_COLORS = ["#9fd24a", "#f2f4ea", "#d2463a", "#e8a54b", "#d9c25f", "#5cc0b2", "#5b9be0", "#a77de0", "#8a6a4a", "#111111"];
+const WB_TOOLS = [["select", "↖", "Auswählen & verschieben"], ["pen", "✎", "Freihand"], ["line", "╱", "Linie"], ["arrow", "➚", "Pfeil"], ["rect", "▭", "Rechteck"], ["ellipse", "◯", "Ellipse"], ["text", "T", "Text"], ["stamp", "🧟", "Marker setzen"], ["erase", "⌫", "Radierer (Objekt antippen)"]];
+const STAMPS = ["🧟", "💀", "🩸", "⚠️", "🚗", "🏠", "🔥", "📦", "🔫", "🚪", "⛽", "❓"];
+let WD = null;
+function wbShell() {
+  const G = S.G;
+  return `<div class="wb-wrap"><div class="wb-tools" id="wb-tools"></div>
+    <div class="wb-scroll"><svg id="wb" viewBox="0 0 ${WB_W} ${WB_H}" style="width:${G.zoom * 100}%">
+      <defs><pattern id="wbgrid" width="50" height="50" patternUnits="userSpaceOnUse"><path d="M50 0H0V50" fill="none" stroke="rgba(159,210,74,.08)" stroke-width="1.5"/></pattern></defs>
+      <rect width="${WB_W}" height="${WB_H}" class="wb-bg"/><rect width="${WB_W}" height="${WB_H}" fill="url(#wbgrid)"/>
+      <g id="wb-objs"></g><g id="wb-sel"></g><g id="wb-toks"></g><g id="wb-draft"></g></svg></div></div>`;
+}
+function wbToolbar() {
+  const el = $("#wb-tools"); if (!el) return;
+  const G = S.G, s = G.sel && G.board[G.sel];
+  el.innerHTML = `${WB_TOOLS.map(([id, ic, t]) => `<button class="wbt ${G.tool === id ? "on" : ""}" title="${t}" onclick="wbTool('${id}')">${id === "stamp" ? G.stamp : ic}</button>`).join("")}
+    ${G.tool === "stamp" ? `<select class="wbw" title="Marker" onchange="S.G.stamp=this.value;wbToolbar()">${STAMPS.map(x => `<option ${x === G.stamp ? "selected" : ""}>${x}</option>`).join("")}</select>` : ""}
+    <span class="wb-sep"></span>
+    ${WB_COLORS.map(c => `<button class="wbc ${G.color === c ? "on" : ""}" style="--c:${c}" title="Farbe" onclick="wbColor('${c}')"></button>`).join("")}
+    <label class="wbc custom" title="Eigene Farbe"><input type="color" value="${G.color}" onchange="wbColor(this.value)"></label>
+    <span class="wb-sep"></span>
+    <select class="wbw" title="Strichstärke / Größe" onchange="S.G.width=Number(this.value);wbRestyle()">${[2, 4, 7, 12].map(w => `<option value="${w}" ${G.width === w ? "selected" : ""}>${w}px</option>`).join("")}</select>
+    <button class="wbt ${G.fill ? "on" : ""}" title="Formen füllen" onclick="S.G.fill=!S.G.fill;wbRestyle();wbToolbar()">◼</button>
+    <span class="wb-sep"></span>
+    <button class="wbt" ${s ? "" : "disabled"} title="Auswahl löschen (Entf)" onclick="wbDelete(S.G.sel)">🗑</button>
+    <button class="wbt" title="Verkleinern" onclick="wbZoom(-1)">−</button><button class="wbt" title="Vergrößern" onclick="wbZoom(1)">+</button>
+    ${isGM() ? `<button class="wbt" title="Alle Zeichnungen löschen" onclick="wbClear()">Fläche leeren</button>` : ""}`;
+}
+function wbTool(t) { const G = S.G; G.tool = t; if (t !== "select") G.sel = null; wbRender(); }
+function wbColor(c) { S.G.color = c; wbRestyle(); wbToolbar(); }
+function wbRestyle() {
+  const G = S.G; if (!G.sel || !G.board[G.sel]) return;
+  const o = G.board[G.sel], patch = { c: G.color, w: G.width };
+  if (["rect", "ellipse"].includes(o.t)) patch.f = G.fill;
+  wbUpdate(G.sel, patch);
+}
+function wbZoom(d) { const G = S.G; G.zoom = Math.max(.6, Math.min(2.5, +(G.zoom + d * .2).toFixed(1))); const svg = $("#wb"); if (svg) svg.style.width = G.zoom * 100 + "%"; }
+function wbShape(o, id) {
+  const c = o.c || "#9fd24a", w = o.w || 4, fill = o.f ? c : "none", fo = o.f ? .35 : 1;
+  const tr = `transform="translate(${+o.ox || 0} ${+o.oy || 0})"`;
+  let vis = "", hit = "";
+  if (o.t === "path" && o.p?.length) {
+    const d = "M" + o.p.map(q => (+q[0]) + " " + (+q[1])).join(" L");
+    vis = `<path d="${d}" fill="none" stroke="${esc(c)}" stroke-width="${+w}" stroke-linecap="round" stroke-linejoin="round"/>`;
+    hit = `<path d="${d}" class="hit" stroke-width="${+w + 16}"/>`;
+  } else if (o.t === "line" || o.t === "arrow") {
+    vis = `<line x1="${+o.x1}" y1="${+o.y1}" x2="${+o.x2}" y2="${+o.y2}" stroke="${esc(c)}" stroke-width="${+w}" stroke-linecap="round"/>`;
+    if (o.t === "arrow") {
+      const a = Math.atan2(o.y2 - o.y1, o.x2 - o.x1), L = 14 + w * 2.2;
+      const p1 = [o.x2 - L * Math.cos(a - .45), o.y2 - L * Math.sin(a - .45)], p2 = [o.x2 - L * Math.cos(a + .45), o.y2 - L * Math.sin(a + .45)];
+      vis += `<polygon points="${+o.x2},${+o.y2} ${p1.join(",")} ${p2.join(",")}" fill="${esc(c)}"/>`;
+    }
+    hit = `<line x1="${+o.x1}" y1="${+o.y1}" x2="${+o.x2}" y2="${+o.y2}" class="hit" stroke-width="${+w + 16}"/>`;
+  } else if (o.t === "rect" || o.t === "ellipse") {
+    const x = Math.min(o.x1, o.x2), y = Math.min(o.y1, o.y2), W = Math.abs(o.x2 - o.x1), H = Math.abs(o.y2 - o.y1);
+    const sh = o.t === "rect" ? (cls, sw) => `<rect x="${x}" y="${y}" width="${W}" height="${H}" rx="4" ${cls} stroke-width="${sw}"/>` : (cls, sw) => `<ellipse cx="${x + W / 2}" cy="${y + H / 2}" rx="${W / 2}" ry="${H / 2}" ${cls} stroke-width="${sw}"/>`;
+    vis = sh(`fill="${esc(fill)}" fill-opacity="${fo}" stroke="${esc(c)}"`, +w);
+    hit = sh(`class="hit ${o.f ? "filled" : ""}"`, +w + 14);
+  } else if (o.t === "text") {
+    vis = `<text x="${+o.x}" y="${+o.y}" fill="${esc(c)}" font-size="${+o.s || 32}" class="wb-text">${esc(o.text || "")}</text>`;
+  } else if (o.t === "stamp") {
+    vis = `<text x="${+o.x}" y="${+o.y}" font-size="${+o.s || 48}" text-anchor="middle" dominant-baseline="central" class="wb-text">${esc(o.text || "")}</text>`;
+  }
+  return `<g class="wbo" data-id="${esc(id)}" ${tr}>${vis}${hit}</g>`;
+}
+function wbRender() {
+  const svg = $("#wb"); if (!svg || !S.G) return;
+  const G = S.G; svg.dataset.tool = G.tool;
+  const ov = WD?.mode === "move" ? WD : null;
+  const objs = Object.entries(G.board).sort((a, b) => (a[1].ts || 0) - (b[1].ts || 0));
+  $("#wb-objs").innerHTML = objs.map(([id, o]) => wbShape(ov && ov.id === id ? { ...o, ox: ov.ox, oy: ov.oy } : o, id)).join("");
+  const selG = $("#wb-sel"); selG.innerHTML = "";
+  if (G.sel && G.board[G.sel]) {
+    const g = svg.querySelector(`.wbo[data-id="${G.sel}"]`);
+    if (g) { try { const b = g.getBBox(), o = G.board[G.sel], ox = (ov && ov.id === G.sel ? ov.ox : o.ox) || 0, oy = (ov && ov.id === G.sel ? ov.oy : o.oy) || 0;
+      selG.innerHTML = `<rect x="${b.x + ox - 8}" y="${b.y + oy - 8}" width="${b.width + 16}" height="${b.height + 16}" class="wb-selbox"/>`; } catch (e) {} }
+  }
+  const players = Object.entries(G.members).filter(([, m]) => m.charId && G.chars[`${m.charOwner}/${m.charId}`]);
+  $("#wb-toks").innerHTML = players.map(([u, m], i) => {
+    const c = G.chars[`${m.charOwner}/${m.charId}`];
+    const t = (WD?.mode === "tok" && WD.uid === u) ? WD : (G.tokens[u] || { x: 120 + i * 120, y: WB_H - 100 });
+    const can = u === UID || isGM(), H = hpMax(c), hp = cur(c, "hp", H), frac = Math.max(0, Math.min(1, hp / H));
+    return `<g class="tok ${can ? "can" : ""}" data-tok="${u}" transform="translate(${+t.x} ${+t.y})">
+      <circle r="44" fill="rgba(0,0,0,.5)"/><circle r="38" fill="${esc(c.color || "#9fd24a")}"/>
+      <text class="tok-ini" text-anchor="middle" dominant-baseline="central">${esc(initials(c.name))}</text>
+      <circle r="44" fill="none" stroke="#3a1714" stroke-width="5"/>
+      ${frac > 0 ? `<circle r="44" fill="none" stroke="#d2463a" stroke-width="5" stroke-dasharray="${(frac * 276.5).toFixed(1)} 400" transform="rotate(-90)"/>` : ""}
+      <text y="64" text-anchor="middle" class="tok-name">${esc(c.name || "?")}</text></g>`;
+  }).join("");
+  wbToolbar();
+}
+function wbPt(e) {
+  const svg = $("#wb"), pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+  const q = pt.matrixTransform(svg.getScreenCTM().inverse());
+  return [Math.round(Math.max(0, Math.min(WB_W, q.x)) * 10) / 10, Math.round(Math.max(0, Math.min(WB_H, q.y)) * 10) / 10];
+}
+document.addEventListener("pointerdown", async e => {
+  const svg = e.target.closest?.("#wb"); if (!svg || e.button > 0 || !S.G) return;
+  const G = S.G, p = wbPt(e);
+  if (!myMember()) { toast("Tritt der Runde bei, um mitzuzeichnen."); return; }
+  const tok = e.target.closest(".tok");
+  if (tok && G.tool === "select") {
+    const u = tok.dataset.tok;
+    if (u !== UID && !isGM()) { toast("Diese Figur dürfen nur ihr Besitzer und die Spielleitung bewegen."); return; }
+    const t = G.tokens[u] || parseTr(tok);
+    WD = { mode: "tok", uid: u, sx: p[0], sy: p[1], x0: t.x, y0: t.y, x: t.x, y: t.y };
+    svg.setPointerCapture(e.pointerId); e.preventDefault(); return;
+  }
+  const obj = e.target.closest(".wbo");
+  if (G.tool === "erase") { if (obj) wbDelete(obj.dataset.id); return; }
+  if (G.tool === "select") {
+    if (obj) {
+      const id = obj.dataset.id, o = G.board[id];
+      G.sel = id; G.color = o.c || G.color; G.width = o.w || G.width; if ("f" in o) G.fill = !!o.f;
+      WD = { mode: "move", id, sx: p[0], sy: p[1], ox0: o.ox || 0, oy0: o.oy || 0, ox: o.ox || 0, oy: o.oy || 0 };
+      svg.setPointerCapture(e.pointerId); e.preventDefault();
+    } else G.sel = null;
+    wbRender(); return;
+  }
+  if (G.tool === "stamp") { wbAdd({ t: "stamp", x: p[0], y: p[1], text: G.stamp, s: 30 + G.width * 5 }); return; }
+  if (G.tool === "text") {
+    const text = await uiPrompt("Text auf dem Whiteboard"); if (!text) return;
+    wbAdd({ t: "text", x: p[0], y: p[1], text: text.slice(0, 200), s: 18 + G.width * 4, c: G.color });
+    return;
+  }
+  WD = { mode: "draw", t: G.tool, p: [p], x1: p[0], y1: p[1], x2: p[0], y2: p[1] };
+  svg.setPointerCapture(e.pointerId); e.preventDefault();
+});
+document.addEventListener("pointermove", e => {
+  if (!WD) return;
+  const svg = $("#wb"); if (!svg) { WD = null; return; }
+  const p = wbPt(e), G = S.G;
+  if (WD.mode === "tok") {
+    WD.x = WD.x0 + p[0] - WD.sx; WD.y = WD.y0 + p[1] - WD.sy;
+    svg.querySelector(`.tok[data-tok="${WD.uid}"]`)?.setAttribute("transform", `translate(${WD.x} ${WD.y})`);
+    return;
+  }
+  if (WD.mode === "move") {
+    WD.ox = WD.ox0 + p[0] - WD.sx; WD.oy = WD.oy0 + p[1] - WD.sy;
+    svg.querySelector(`.wbo[data-id="${WD.id}"]`)?.setAttribute("transform", `translate(${WD.ox} ${WD.oy})`);
+    $("#wb-sel").innerHTML = ""; return;
+  }
+  if (WD.mode === "draw") {
+    if (WD.t === "pen") { const l = WD.p[WD.p.length - 1]; if (Math.hypot(p[0] - l[0], p[1] - l[1]) > 2.5 && WD.p.length < 2500) WD.p.push(p); }
+    WD.x2 = p[0]; WD.y2 = p[1];
+    const o = WD.t === "pen" ? { t: "path", p: WD.p } : { t: WD.t, x1: WD.x1, y1: WD.y1, x2: WD.x2, y2: WD.y2 };
+    $("#wb-draft").innerHTML = wbShape({ ...o, c: G.color, w: G.width, f: G.fill }, "draft");
+  }
+});
+document.addEventListener("pointerup", () => {
+  if (!WD) return;
+  const d = WD, G = S.G; WD = null; if (!G) return;
+  if (d.mode === "tok") {
+    const x = Math.round(Math.max(45, Math.min(WB_W - 45, d.x))), y = Math.round(Math.max(45, Math.min(WB_H - 70, d.y)));
+    G.tokens[d.uid] = { x, y }; wbRender();
+    DB.doc(`games/${G.id}/tokens/${d.uid}`).set({ x, y, by: UID, ts: Date.now() }).catch(writeErr);
+    return;
+  }
+  if (d.mode === "move") {
+    if (d.ox !== d.ox0 || d.oy !== d.oy0) wbUpdate(d.id, { ox: Math.round(d.ox), oy: Math.round(d.oy) });
+    wbRender(); return;
+  }
+  if (d.mode === "draw") {
+    $("#wb-draft").innerHTML = "";
+    if (d.t === "pen") { if (d.p.length < 2) d.p.push([d.p[0][0] + .5, d.p[0][1] + .5]); wbAdd({ t: "path", p: d.p, c: G.color, w: G.width }); }
+    else if (Math.hypot(d.x2 - d.x1, d.y2 - d.y1) > 4) wbAdd({ t: d.t, x1: d.x1, y1: d.y1, x2: d.x2, y2: d.y2, c: G.color, w: G.width, f: ["rect", "ellipse"].includes(d.t) ? G.fill : undefined });
+  }
+});
+document.addEventListener("keydown", e => {
+  if ((e.key === "Delete" || e.key === "Backspace") && S.G?.sel && S.G.tab === "board" && !e.target.closest("input,textarea,select")) { e.preventDefault(); wbDelete(S.G.sel); }
+});
+function parseTr(g) { const m = (g.getAttribute("transform") || "").match(/translate\(([-\d.]+)[ ,]+([-\d.]+)/); return m ? { x: +m[1], y: +m[2] } : { x: 0, y: 0 }; }
+async function wbAdd(o) {
+  const G = S.G; Object.keys(o).forEach(k => o[k] === undefined && delete o[k]);
+  o.by = UID; o.ts = Date.now();
+  const id = "o" + o.ts.toString(36) + Math.random().toString(36).slice(2, 6);
+  G.board[id] = o; wbRender();
+  try { await DB.doc(`games/${G.id}/board/${id}`).set(o); } catch (e) { delete G.board[id]; wbRender(); writeErr(e); }
+}
+const wbPending = {};
+async function wbUpdate(id, patch) {
+  const G = S.G; if (!G.board[id]) return;
+  G.board[id] = { ...G.board[id], ...patch }; wbRender();
+  if (wbPending[id]) { wbPending[id].next = { ...(wbPending[id].next || {}), ...patch }; return; }
+  wbPending[id] = {}; let p = patch;
+  while (p) { try { await DB.doc(`games/${G.id}/board/${id}`).update(p); } catch (e) { if (e?.code !== "invalid_argument") writeErr(e); } p = wbPending[id].next; wbPending[id].next = null; }
+  delete wbPending[id];
+}
+function wbDelete(id) {
+  const G = S.G; if (!id || !G.board[id]) return;
+  delete G.board[id]; if (G.sel === id) G.sel = null; wbRender();
+  DB.doc(`games/${G.id}/board/${id}`).delete().catch(writeErr);
+}
+async function wbClear() {
+  if (!await uiConfirm("Alle Zeichnungen auf dem Whiteboard für alle löschen? Die Charakterfiguren bleiben.", "Leeren")) return;
+  const G = S.G, ids = Object.keys(G.board); G.board = {}; G.sel = null; wbRender();
+  for (const id of ids) DB.doc(`games/${G.id}/board/${id}`).delete().catch(() => {});
+}
+
+window.addEventListener("hashchange", () => { const r = new URLSearchParams(location.hash.slice(1)).get("runde"); if (r && r !== S.G?.id) openGame(r); });
+boot().catch(e => { console.error(e); $("#app").innerHTML = `<div class="card bad">Verbindung zum Server fehlgeschlagen: ${esc(e.message || e)}</div>`; });
+</script>
+</body>
+</html>

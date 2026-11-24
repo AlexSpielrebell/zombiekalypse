@@ -1,0 +1,54 @@
+# Zombiekalypse – Online-Spieltisch
+
+Spieltisch für das Rollenspiel **Zombiekalypse**, aufgebaut wie das Daggerheart-Tool:
+eigener kleiner Server, kein Konto nötig. Wer die Adresse öffnet, gibt einmal einen Namen ein (und ggf. den Zugangscode).
+
+## Was die App kann
+
+- **Charaktere anlegen und bearbeiten** nach den aktuellen Regeln: vier Attribute, Fertigkeitsliste mit Spezialisierungen,
+  Vor- und Nachteile, Waffen und Rüstung (mit Vorlagen aus den Regeltabellen), Inventar, Lernpunkte.
+  Eine Übersicht prüft Attribut- und Fertigkeitspunkte und die Erstellungsgrenzen und rechnet Lebenspunkte, Ausdauer und Initiative aus.
+- **Spielrunden**: Wer eine Runde anlegt, ist die Spielleitung. Mitspielende treten mit einem ihrer Charaktere bei (Link teilen).
+- **Charakterbögen der Gruppe** live für alle sichtbar. Wer den Charakter besitzt, kann LP, Ausdauer und Stresswürfel direkt anpassen
+  und Fertigkeiten für die Steigerung markieren.
+- **Whiteboard** für alle: Freihand, Linien, Pfeile, Rechtecke, Ellipsen, Text, Marker (🧟 💀 🚗 …), Farben, Verschieben, Radierer.
+  Jeder Charakter hat eine Figur mit Lebenspunkte-Ring; bewegen dürfen sie ihr Besitzer und die Spielleitung. Nur die Spielleitung kann die Fläche leeren.
+- **Würfel**: Proben mit Attribut + Fertigkeit, Zustände Ruhe/Normal/Stress/Krise, Stresswürfel einsetzen und Wurf wiederholen,
+  Initiative (2W10 + Körper + Willen) und Schaden gegen einen Rüstungswert. Alle Würfe erscheinen im gemeinsamen Protokoll.
+
+Die Würfelregeln folgen dem Regelstand vom 24.11.2026. Offen ist dort noch, was ein kleiner Vorteil kostet; die App nimmt 2 Fertigkeitspunkte an.
+
+## Dateien
+
+| Datei | Zweck |
+|---|---|
+| `server.js` | Server (reines Node.js, keine Pakete): liefert die Seite aus, speichert die Daten, verteilt Änderungen live (Server-Sent Events) und prüft Schreibrechte |
+| `public/index.html` | Die komplette App |
+| `public/adapter.js` | Verbindung zwischen Seite und Server |
+| `render.yaml` | Konfiguration für Render (Blueprint) |
+
+## Lokal ausprobieren
+
+```bash
+node server.js                       # http://localhost:3000
+ACCESS_CODE=geheim node server.js    # mit Zugangscode
+```
+
+## Auf Render veröffentlichen
+
+1. In Render: **New → Blueprint** → dieses Repository wählen. Render liest `render.yaml` und legt einen Web-Service
+   mit 1 GB dauerhaftem Speicher (`/var/data`) an.
+2. Bei `ACCESS_CODE` einen Zugangscode für die Gruppe eintragen oder leer lassen.
+3. Die Adresse (`https://zombiekalypse-xxxx.onrender.com`) mit der Gruppe teilen.
+
+Persistent Disks gibt es nur auf bezahlten Instanzen. Auf dem kostenlosen Plan (`plan: free`, `disk`-Block entfernen) läuft die App auch,
+aber alle Daten gehen bei jedem Neustart verloren. Charaktere lassen sich jederzeit als JSON exportieren und wieder importieren.
+
+## Rechte
+
+- Jeder Browser bekommt eine zufällige Kennung mit geheimem Schlüssel; der Server speichert nur dessen Hash.
+- Charaktere kann nur ihr Besitzer ändern. Lesen dürfen alle (damit die Gruppe die Bögen sieht).
+- Name und Teilnehmerliste einer Runde ändert nur die Spielleitung bzw. die jeweilige Person selbst.
+- Whiteboard, Figuren und Würfelprotokoll dürfen alle Teilnehmenden ändern.
+
+Daten liegen in `db.json` und `users.json` im Datenordner. Bitte nur eine Instanz betreiben.

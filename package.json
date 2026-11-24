@@ -1,0 +1,9 @@
+{
+  "name": "zombiekalypse-spieltisch",
+  "version": "0.1.0",
+  "description": "Zombiekalypse Online-Spieltisch: Charakterbögen, gemeinsames Whiteboard und Würfel – eigener Server ohne externe Abhängigkeiten",
+  "main": "server.js",
+  "private": true,
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" }
+}
