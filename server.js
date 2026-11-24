@@ -11,8 +11,8 @@
 //            POST /api/op     {s, op, ...}  (get, set, update, delete, sub, unsub, profiles, join, presence, leave)
 //
 // Datenpfade:  chars/<uid>/c/<charId>          Charaktere (nur Besitzer schreibt, alle lesen)
-//              games/<gameId>                   Runde {name, gm} (nur Spielleitung schreibt)
-//              games/<gameId>/members/<uid>     Teilnahme (die Person selbst oder Spielleitung)
+//              games/<gameId>                   Runde {name, owner} (Ersteller oder Spielleitung schreibt)
+//              games/<gameId>/members/<uid>     Teilnahme mit Rolle gm|player (die Person selbst, Ersteller oder Spielleitung)
 //              games/<gameId>/board|tokens|rolls|combat/<id>   Whiteboard, Figuren, Würfe, Kampf (alle Teilnehmenden)
 
 "use strict";
@@ -61,16 +61,18 @@ function validPath(p, wantDoc) {
   return wantDoc ? s.length % 2 === 0 : s.length % 2 === 1;
 }
 function canRead(uid, p) { const s = p.split("/"); return !(s[0] === "data" && s[1] === "users" && s[2] !== uid); }
-function gmOf(gid) { return docs.get("games/" + gid)?.gm; }
+// Runde: games/<gid> {name, owner}. Spielleitung ist, wer als Mitglied die Rolle "gm" gewählt hat.
+const ownerOf = gid => { const g = docs.get("games/" + gid); return g ? (g.owner || g.gm) : undefined; };
+const isGmMember = (gid, uid) => docs.get(`games/${gid}/members/${uid}`)?.role === "gm";
 function canWrite(uid, p, data) {
   const s = p.split("/");
   if (s[0] === "chars") return s[1] === uid;                 // nur die eigenen Charaktere
   if (s[0] === "data" && s[1] === "users") return s[2] === uid; // private Daten
   if (s[0] === "games") {
-    const gm = gmOf(s[1]);
-    if (s.length === 2) return gm ? gm === uid : (!data || data.gm === uid); // neue Runde: Ersteller wird Spielleitung
-    if (!gm) return false;                                   // Runde existiert nicht
-    if (s[2] === "members") return s[3] === uid || gm === uid;
+    const owner = ownerOf(s[1]);
+    if (s.length === 2) return owner ? (owner === uid || isGmMember(s[1], uid)) : (!data || data.owner === uid); // neue Runde: Ersteller ist Besitzer
+    if (!owner) return false;                                 // Runde existiert nicht
+    if (s[2] === "members") return s[3] === uid || owner === uid || isGmMember(s[1], uid);
     return ["board", "tokens", "rolls", "combat"].includes(s[2]);
   }
   return false;
@@ -150,7 +152,7 @@ function handleOp(sess, m) {
       if (!validPath(m.path, true)) return err("invalid_argument", "Pfad ungültig");
       if (!m.data || typeof m.data !== "object" || Array.isArray(m.data)) return err("invalid_argument", "Dokument muss ein Objekt sein");
       if (!canWrite(uid, m.path, m.op === "set" ? m.data : null)) return err("permission_denied", "Keine Schreibrechte für diesen Pfad");
-      if (m.op === "update" && m.path.split("/").length === 2 && m.path.startsWith("games/") && "gm" in m.data && m.data.gm !== uid) return err("permission_denied", "Spielleitung kann nicht übertragen werden");
+      if (m.path.split("/").length === 2 && m.path.startsWith("games/") && docs.has(m.path) && "owner" in m.data && m.data.owner !== docs.get(m.path).owner) return err("permission_denied", "Besitz der Runde kann nicht übertragen werden");
       let next;
       if (m.op === "update") {
         if (!docs.has(m.path)) return err("invalid_argument", "Dokument existiert nicht");

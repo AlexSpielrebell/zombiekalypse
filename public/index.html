@@ -111,6 +111,8 @@ table.wt th{color:var(--mute);font-weight:600;font-size:12px;text-transform:uppe
 .chip{display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:3px 9px 3px 4px;border-radius:20px;background:var(--panel);border:1px solid var(--line)}
 .chip i{width:18px;height:18px;border-radius:50%;background:var(--c);display:inline-block}
 .chip.gm{border-color:var(--warn)}
+.joinopts{display:grid;grid-template-columns:1fr 1fr;gap:10px}.joinopts .item{gap:8px}
+@media (max-width:760px){.joinopts{grid-template-columns:minmax(0,1fr)}}
 .party{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,520px),1fr));gap:12px}
 .side{display:flex;flex-direction:column;gap:12px;position:sticky;top:66px;max-height:calc(100vh - 80px)}
 .roller label.f{display:flex;flex-direction:column;gap:3px;font-size:12.5px;color:var(--mute);margin-bottom:8px}
@@ -327,8 +329,8 @@ function homeHTML() {
         : `<div class="empty">Noch keine Charaktere. Leg deinen ersten Überlebenden an.</div>`}</div>
       <p class="small mute">Charaktere liegen auf dem Server und gehören deinem Browser. Auf einem anderen Gerät per Export/Import mitnehmen.</p></div>
     <div class="card"><div class="row"><h2 class="grow">Spielrunden</h2><button class="btn pri" onclick="newGame()">+ Neue Runde</button></div>
-      <div class="list">${games.length ? games.map(([id, g]) => `<div class="item"><div class="grow"><div class="t">${esc(g.name || "Runde")}</div><div class="s">Spielleitung: ${esc(g.gmName || "?")}${g.gm === UID ? " (du)" : ""}</div></div>
-        <button class="btn sm pri" onclick="openGame('${id}')">Öffnen</button>${g.gm === UID ? `<button class="btn sm danger" title="Runde löschen" onclick="delGame('${id}')">✕</button>` : ""}</div>`).join("")
+      <div class="list">${games.length ? games.map(([id, g]) => `<div class="item"><div class="grow"><div class="t">${esc(g.name || "Runde")}</div><div class="s">angelegt von ${esc(g.ownerName || g.gmName || "?")}${(g.owner || g.gm) === UID ? " (du)" : ""}</div></div>
+        <button class="btn sm pri" onclick="openGame('${id}')">Öffnen</button>${(g.owner || g.gm) === UID ? `<button class="btn sm danger" title="Runde löschen" onclick="delGame('${id}')">✕</button>` : ""}</div>`).join("")
         : `<div class="empty">Noch keine Runde. Wer die Runde anlegt, ist die Spielleitung.</div>`}</div></div>
   </div>`;
 }
@@ -336,8 +338,7 @@ async function newGame() {
   const name = ((await uiPrompt("Name der Spielrunde", "Tag 1 nach dem Ausbruch")) || "").trim(); if (!name) return;
   const id = "g" + rid();
   try {
-    await DB.doc(`games/${id}`).set({ name: name.slice(0, 80), gm: UID, gmName: MYNAME, createdAt: Date.now() });
-    await DB.doc(`games/${id}/members/${UID}`).set({ role: "gm", name: MYNAME, color: "#e8a54b", joinedAt: Date.now() });
+    await DB.doc(`games/${id}`).set({ name: name.slice(0, 80), owner: UID, ownerName: MYNAME, createdAt: Date.now() });
     openGame(id);
   } catch (e) { writeErr(e); }
 }
@@ -547,13 +548,18 @@ function syncCharSubs() {
     G.charSubs[k] = DB.doc(charPath(o, c)).onSnapshot(s => { if (S.G !== G) return; if (s.exists) G.chars[k] = s.data(); else delete G.chars[k]; if (G.tab === "board") wbRender(); else render(); if (o === UID) renderRoller(); }, () => {});
   }
 }
-const isGM = () => S.G?.game?.gm === UID;
+const isGM = () => S.G?.members?.[UID]?.role === "gm";
 const myMember = () => S.G?.members?.[UID];
 const myChar = () => { const m = myMember(); return m?.charId ? (S.G.chars[`${m.charOwner}/${m.charId}`] || S.myChars[m.charId]) : null; };
-async function joinGame(charId) {
+async function joinGame(charId, role) {
   const m = myMember(), G = S.G;
-  const data = { role: m?.role || "player", name: MYNAME, color: charId ? (S.myChars[charId]?.color || "#9fd24a") : (m?.color || "#e8a54b"), charOwner: charId ? UID : null, charId: charId || null, joinedAt: m?.joinedAt || Date.now() };
+  const data = { role: role || m?.role || "player", name: MYNAME, color: charId ? (S.myChars[charId]?.color || "#9fd24a") : (m?.color || "#e8a54b"), charOwner: charId ? UID : null, charId: charId || null, joinedAt: m?.joinedAt || Date.now() };
   try { await DB.doc(`games/${G.id}/members/${UID}`).set(data); } catch (e) { writeErr(e); }
+}
+async function setRole(role) {
+  const m = myMember(); if (!m) return;
+  if (role === "player" && m.role === "gm" && !Object.entries(S.G.members).some(([u, x]) => u !== UID && x.role === "gm") && !await uiConfirm("Dann hat die Runde keine Spielleitung mehr. Trotzdem wechseln?", "Wechseln")) { render(); return; }
+  DB.doc(`games/${S.G.id}/members/${UID}`).update({ role, color: role === "gm" && !m.charId ? "#e8a54b" : m.color }).catch(writeErr);
 }
 async function leaveGame() {
   if (!await uiConfirm("Die Runde verlassen? Dein Charakter bleibt erhalten.", "Verlassen")) return;
@@ -584,8 +590,10 @@ function renderGame() {
   else main = wbShell();
   app.innerHTML = `<div class="tbl-head"><button class="btn" onclick="go('home')">←</button><h1 class="grow" style="min-width:200px">${esc(G.game.name)}</h1>
       <div class="chips">${members.map(([u, x]) => `<span class="chip ${x.role === "gm" ? "gm" : ""}" title="${x.role === "gm" ? "Spielleitung" : "Spieler/in"}"><i style="--c:${esc(x.color)}"></i>${esc(x.name || "?")}${x.role === "gm" ? " (SL)" : ""}${gm && u !== UID ? ` <button class="x" style="font-size:13px;padding:0 0 0 4px" title="Entfernen" onclick="kick('${u}')">✕</button>` : ""}</span>`).join("")}</div></div>
-    ${!m ? `<div class="card" style="margin-bottom:12px"><div class="row"><b class="grow">Du bist noch nicht in dieser Runde.</b>${myChars.length ? `<select id="joinsel" style="width:auto">${myChars.map(([id, c]) => `<option value="${id}">${esc(c.name || "Unbenannt")}</option>`).join("")}</select><button class="btn pri" onclick="joinGame($('#joinsel').value)">Mit Charakter beitreten</button>` : `<button class="btn pri" onclick="editChar()">Erst Charakter anlegen</button>`}<button class="btn" onclick="joinGame(null)">Ohne Charakter zuschauen</button></div></div>`
-      : `<div class="row small" style="margin-bottom:10px"><span class="mute">${m.role === "gm" ? "Du leitest diese Runde." : "Dein Charakter:"}</span><select style="width:auto;padding:4px 8px" onchange="joinGame(this.value||null)"><option value="">– keiner –</option>${myChars.map(([id, c]) => `<option value="${id}" ${m.charId === id ? "selected" : ""}>${esc(c.name || "Unbenannt")}</option>`).join("")}</select>${m.charId ? `<button class="btn sm" onclick="editChar('${m.charId}')">Bogen bearbeiten</button>` : ""}<span class="grow"></span>${m.role !== "gm" ? `<button class="btn sm" onclick="leaveGame()">Runde verlassen</button>` : ""}<button class="btn sm" onclick="copyLink()">Link kopieren</button></div>`}
+    ${!m ? `<div class="card" style="margin-bottom:12px"><h2 style="margin-bottom:4px">Wie möchtest du beitreten?</h2><p class="small mute" style="margin:0 0 10px">Die Rolle kannst du später jederzeit wechseln. Eine Runde kann mehrere Spielleitungen haben.</p>
+      <div class="joinopts"><div class="item" style="flex-direction:column;align-items:stretch"><b>Als Spieler/in</b>${myChars.length ? `<select id="joinsel">${myChars.map(([id, c]) => `<option value="${id}">${esc(c.name || "Unbenannt")}</option>`).join("")}<option value="">– ohne Charakter –</option></select><button class="btn pri" onclick="joinGame($('#joinsel').value||null,'player')">Als Spieler/in beitreten</button>` : `<span class="small mute">Du hast noch keinen Charakter.</span><div class="row"><button class="btn pri" onclick="editChar()">Charakter anlegen</button><button class="btn" onclick="joinGame(null,'player')">Ohne Charakter beitreten</button></div>`}</div>
+        <div class="item" style="flex-direction:column;align-items:stretch"><b>Als Spielleitung</b><span class="small mute">Gegner im Kampf steuern, Whiteboard und Protokoll leeren, Teilnehmende entfernen.</span><button class="btn pri" onclick="joinGame(null,'gm')">Als Spielleitung beitreten</button></div></div></div>`
+      : `<div class="row small" style="margin-bottom:10px"><span class="mute">Rolle:</span><select style="width:auto;padding:4px 8px" onchange="setRole(this.value)"><option value="player" ${m.role !== "gm" ? "selected" : ""}>Spieler/in</option><option value="gm" ${m.role === "gm" ? "selected" : ""}>Spielleitung</option></select><span class="mute">Charakter:</span><select style="width:auto;padding:4px 8px" onchange="joinGame(this.value||null)"><option value="">– keiner –</option>${myChars.map(([id, c]) => `<option value="${id}" ${m.charId === id ? "selected" : ""}>${esc(c.name || "Unbenannt")}</option>`).join("")}</select>${m.charId ? `<button class="btn sm" onclick="editChar('${m.charId}')">Bogen bearbeiten</button>` : ""}<span class="grow"></span><button class="btn sm" onclick="leaveGame()">Runde verlassen</button><button class="btn sm" onclick="copyLink()">Link kopieren</button></div>`}
     <div class="tbl"><div><div class="tabs" id="tabs">${tabsHTML()}</div>${main}</div>
       <aside class="side"><div class="card roller" id="roller"></div><div class="card" style="display:flex;flex-direction:column;min-height:0;flex:1"><div class="row" style="margin-bottom:8px"><h3 class="grow">Würfelprotokoll</h3>${gm ? `<button class="btn sm" onclick="clearLog()">Leeren</button>` : ""}</div><div class="log" id="log"></div></div></aside></div>`;
   if (G.tab === "board") wbRender();
