@@ -189,7 +189,7 @@ const SKILLS = {
 const SKILL_INFO = {}; for (const [a, l] of Object.entries(SKILLS)) for (const [k, n, d] of l) SKILL_INFO[k] = { attr: a, name: n, desc: d };
 const ATTR_BUDGETS = [[10, "Durchschnittlich (10)"], [13, "Fähig (13)"], [16, "Außergewöhnlich / Held (16)"]];
 const SKILL_BUDGETS = [[10, "Schwach, jung, ungelernt (10)"], [15, "Normal begabt (15)"], [20, "Fähig, Abenteuerstart (20)"], [25, "Erfahren (25)"], [35, "Veteran (35)"]];
-// Kosten in Fertigkeitspunkten (positiv = kostet, negativ = bringt). Kleiner Vorteil: im Regeltext noch offen, hier 2 angenommen.
+// Kosten in Fertigkeitspunkten (positiv = kostet, negativ = bringt), Regelstand 24.11.2026 (3.4).
 const TRAIT_COST = { vorteil: { klein: 2, gross: 5 }, nachteil: { klein: -2, gross: -5 } };
 const WEAPONS = [
   ["Faust / Tritt", 2, "Ausdauerschaden statt LP-Schaden"], ["Martial Arts Angriff", 2, "LP-Schaden"], ["Messer / Jagddolch", 2, "Schnell: −1 Initiativekosten; leicht zu verbergen"],
@@ -199,7 +199,7 @@ const WEAPONS = [
   ["Revolver (.38 Special)", 4, "Zuverlässig: keine Ladehemmung"], ["Colt 1911 (.45 ACP)", 5, "Stoppwirkung: wirft menschliche Ziele um"], ["Magnum .44", 6, "Laut; −1W auf Folgeschuss"],
   ["Jagdgewehr (Repetierer)", 6, "Hohe Reichweite"], ["Schrotflinte (Pump-Action)", 7, "Streuung: bis zu 2 Ziele auf kurze Distanz"], ["M16 (Sturmgewehr)", 8, "Feuerstoß: hoher Munitionsverbrauch; +2W"],
   ["M60 Maschinengewehr", 10, "Sperrfeuer: kann Deckung durchschlagen"], ["M72 LAW (Bazooka)", 12, "Einweg"], ["Splittergranate", 9, "Fläche: Radius 5 m"], ["Molotow-Cocktail", 4, "Brand: +2W in der nächsten Runde"],
-  ["Mistgabel", 4, "Aufspießen (+1 Initiative)"], ["Schaufel", 4, ""], ["Glättkelle", 3, "+1 auf Ausweichen"], ["Vorschlaghammer", 4, "Verwüster; +2W gegen liegende/festgehaltene Gegner"],
+  ["Mistgabel", 4, "Aufspießen (+1 Initiative)"], ["Schaufel", 4, ""], ["Glättkelle", 3, "Flache Seite als Schutz: verringert Schaden um 1W10"], ["Vorschlaghammer", 4, "Verwüster; +2W gegen liegende/festgehaltene Gegner; +1 Initiativekosten pro Aktion"],
   ["Handsäge / Feinsäge", 2, ""], ["Hammer", 4, "Kopftreffer (Mensch): −3 Initiative, „benommen“"], ["Sichel", 2, "Bleibt stecken: Gegner „festgehalten“"], ["Spitzhacke", 4, ""], ["Handbeil", 4, ""], ["Bolzenschneider", 3, ""]
 ];
 const ARMORS = [["Keine / normale Kleidung", 7, 6, "Keine Behinderung"], ["Dicke Winterjacke", 8, 7, "Gut gegen Bisse, kaum gegen Kugeln"], ["Biker-Lederjacke", 8, 7, "Hält Kratzer ab"], ["Eishockey-Ausrüstung", 9, 7, "Ideal gegen Zähne"],
@@ -416,7 +416,7 @@ function editHTML() {
       <div class="lst">${c.custom.map((s, i) => `<div class="lr cs">${inp(`custom.${i}.name`, s.name)}<select data-k="custom.${i}.attr" onchange="edInput(this)">${opt(ATTRS, s.attr)}</select><select data-k="custom.${i}.v" data-num onchange="edInput(this)">${[0, 1, 2, 3, 4, 5, 6, 7, 8].map(v => `<option ${(+s.v || 0) === v ? "selected" : ""}>${v}</option>`).join("")}</select><button class="x" onclick="edList('custom','del',${i})">✕</button></div>`).join("")}</div>
       <button class="btn sm" style="margin-top:8px" onclick="edList('custom','add')">+ Fertigkeit</button></section>
 
-    <section class="card"><h3>Vor- &amp; Nachteile</h3><p class="small mute" style="margin:4px 0 8px">Mit der Spielleitung absprechen. Kleiner Vorteil/Nachteil: ±1 Würfel in passenden Situationen, großer ±2. Würfe mit Nachteil sind immer Stresswürfe. Ein kleiner Vorteil ist kostenlos. Kosten: großer Vorteil 5, kleiner Nachteil +2, großer Nachteil +5 Fertigkeitspunkte (kleiner Vorteil: 2, Annahme).</p>
+    <section class="card"><h3>Vor- &amp; Nachteile</h3><p class="small mute" style="margin:4px 0 8px">Mit der Spielleitung absprechen. Kleiner Vorteil/Nachteil: ±1 Würfel in passenden Situationen, großer ±2. Würfe mit Nachteil sind immer Stresswürfe. Ein kleiner Vorteil ist kostenlos. Weitere kleine Vorteile kosten 2, große Vorteile 5 Fertigkeitspunkte. Kleine Nachteile bringen 2, große 5 Fertigkeitspunkte.</p>
       <div class="lst">${c.traits.map((t, i) => `<div class="lr tr">${inp(`traits.${i}.name`, t.name, t.kind === "vorteil" ? "z. B. Furchtlos" : "z. B. Spinnenphobie")}<select data-k="traits.${i}.kind" onchange="edInput(this);render()">${opt([["vorteil", "Vorteil"], ["nachteil", "Nachteil"]], t.kind)}</select><select data-k="traits.${i}.size" onchange="edInput(this);render()">${opt([["klein", "klein"], ["gross", "groß"]], t.size)}</select><label class="small mute" title="Der kostenlose Start-Vorteil"><input type="checkbox" data-k="traits.${i}.free" ${t.free ? "checked" : ""} onchange="edInput(this)"> gratis</label><button class="x" onclick="edList('traits','del',${i})">✕</button></div>`).join("")}</div>
       <button class="btn sm" style="margin-top:8px" onclick="edList('traits','add')">+ Vor-/Nachteil</button></section>
 
@@ -593,7 +593,7 @@ function renderRoller() {
     ${c ? `<label class="f">Probe<select onchange="S.G.roll.what=this.value">${opt(opts, R.what)}</select></label>` : `<label class="f">Anzahl W10 (freier Wurf)<input type="number" min="1" max="40" value="${R.free}" oninput="S.G.roll.free=+this.value"></label>`}
     <label class="f">Zustand<div class="seg">${STATES.map(([k, n]) => `<button class="${R.state === k ? "on" : ""} ${k === "stress" ? "st" : k === "krise" ? "kr" : ""}" onclick="S.G.roll.state='${k}';renderRoller()">${n}</button>`).join("")}</div></label>
     <div class="row" style="gap:8px;align-items:flex-end">
-      <label class="f grow">Modifikator (W)<input type="number" min="-10" max="10" value="${R.mod}" oninput="S.G.roll.mod=+this.value" title="z. B. Vorteil +1, Nachteil −1, hastig −1, gezielt +1"></label>
+      <label class="f grow">Modifikator (W)<input type="number" min="-10" max="10" value="${R.mod}" oninput="S.G.roll.mod=+this.value" title="z. B. Vorteil +1, Nachteil −1, hastig −1, gezielt +1, Point blank/Feuerstoß +1, ganzes Magazin +3"></label>
       ${c ? `<label class="f grow">Stresswürfel (${R.state === "krise" ? "alle" : st + " übrig"})<input type="number" min="0" max="${st}" value="${R.state === "krise" ? c.stressMax : R.sd}" ${R.state === "krise" || R.state === "ruhe" ? "disabled" : ""} oninput="S.G.roll.sd=Math.min(${st},Math.max(0,+this.value))"></label>` : ""}</div>
     <div class="row"><button class="btn pri grow" onclick="doRoll()">🎲 Würfeln</button>${c ? `<button class="btn" title="2W10 + Körper + Willen" onclick="doIni()">Initiative</button>` : `<button class="btn" onclick="doIni()">2W10</button>`}</div>
     <details style="margin-top:10px"><summary class="small" style="cursor:pointer">Schaden würfeln</summary><div style="margin-top:8px">

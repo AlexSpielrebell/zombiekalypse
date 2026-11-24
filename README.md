@@ -16,7 +16,7 @@ eigener kleiner Server, kein Konto nötig. Wer die Adresse öffnet, gibt einmal 
 - **Würfel**: Proben mit Attribut + Fertigkeit, Zustände Ruhe/Normal/Stress/Krise, Stresswürfel einsetzen und Wurf wiederholen,
   Initiative (2W10 + Körper + Willen) und Schaden gegen einen Rüstungswert. Alle Würfe erscheinen im gemeinsamen Protokoll.
 
-Die Würfelregeln folgen dem Regelstand vom 24.11.2026. Offen ist dort noch, was ein kleiner Vorteil kostet; die App nimmt 2 Fertigkeitspunkte an.
+Die Regeln in der App folgen dem Regelstand vom 24.11.2026.
 
 ## Dateien
 
