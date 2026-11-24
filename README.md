@@ -30,7 +30,7 @@ Die Regeln in der App folgen dem Regelstand vom 24.11.2026.
 | `server.js` | Server (reines Node.js, keine Pakete): liefert die Seite aus, speichert die Daten, verteilt Änderungen live (Server-Sent Events) und prüft Schreibrechte |
 | `public/index.html` | Die komplette App |
 | `public/adapter.js` | Verbindung zwischen Seite und Server |
-| `render.yaml` | Konfiguration für Render (Blueprint) |
+| `render.yaml` | Konfiguration für Render (Blueprint, kostenloser Plan) |
 
 ## Lokal ausprobieren
 
@@ -41,13 +41,32 @@ ACCESS_CODE=geheim node server.js    # mit Zugangscode
 
 ## Auf Render veröffentlichen
 
-1. In Render: **New → Blueprint** → dieses Repository wählen. Render liest `render.yaml` und legt einen Web-Service
-   mit 1 GB dauerhaftem Speicher (`/var/data`) an.
-2. Bei `ACCESS_CODE` einen Zugangscode für die Gruppe eintragen oder leer lassen.
+1. In Render: **New → Blueprint** → dieses Repository wählen. Render liest `render.yaml` und legt einen kostenlosen Web-Service an.
+2. Die Umgebungsvariablen eintragen (siehe „Dauerhafter Speicher“) und bei `ACCESS_CODE` optional einen Zugangscode.
 3. Die Adresse (`https://zombiekalypse-xxxx.onrender.com`) mit der Gruppe teilen.
 
-Persistent Disks gibt es nur auf bezahlten Instanzen. Auf dem kostenlosen Plan (`plan: free`, `disk`-Block entfernen) läuft die App auch,
-aber alle Daten gehen bei jedem Neustart verloren. Charaktere lassen sich jederzeit als JSON exportieren und wieder importieren.
+## Dauerhafter Speicher
+
+Ein kostenloser Render-Dienst hat keine Festplatte, die einen Deploy oder Neustart überlebt. Deshalb sichert der Server alles
+zusätzlich in einer kostenlosen **Upstash-Redis-Datenbank** und lädt sie beim Start wieder:
+
+1. Auf [upstash.com](https://upstash.com) kostenlos anmelden → **Create Database** (Redis, Region z. B. Frankfurt, Free).
+2. In der Datenbank unter **REST API** die Werte `UPSTASH_REDIS_REST_URL` und `UPSTASH_REDIS_REST_TOKEN` kopieren.
+3. In Render beim Dienst unter **Environment** beide Variablen eintragen und speichern (Render startet neu).
+4. Prüfen: `https://<deine-adresse>/healthz` zeigt `"storage":"extern"`.
+
+Alternativ geht ein bezahlter Render-Plan mit Persistent Disk: `plan: starter`, eine Disk mit Mount Path `/var/data` und `DATA_DIR=/var/data`.
+
+**Zusätzliche Absicherung im Browser:** Jeder Browser hält eine Kopie seiner eigenen Charaktere. Fehlt ein Charakter auf dem Server
+(z. B. nach einem Neustart ohne externen Speicher), lädt die App ihn beim nächsten Öffnen automatisch wieder hoch. Absichtlich
+gelöschte Charaktere bleiben gelöscht. Spielrunden, Whiteboard und Würfelprotokoll sind nur mit externem Speicher oder Disk dauerhaft.
+
+## Wachhalten
+
+Kostenlose Render-Dienste schlafen nach 15 Minuten ohne Anfragen ein. Solange mindestens eine Person die Seite offen hat,
+meldet sich die Seite alle 10 Minuten beim Server, und der Server ruft sich zusätzlich alle 10 Minuten über seine öffentliche
+Adresse selbst auf (`RENDER_EXTERNAL_URL`, setzt Render automatisch). Schließen alle den Tisch, hört der Ping nach spätestens
+15 Minuten auf und der Dienst darf einschlafen. Beim nächsten Aufruf wacht er nach etwa einer Minute wieder auf.
 
 ## Rechte
 
@@ -56,4 +75,4 @@ aber alle Daten gehen bei jedem Neustart verloren. Charaktere lassen sich jederz
 - Den Namen einer Runde ändern Ersteller und Spielleitung. Die eigene Teilnahme (Rolle, Charakter) ändert jede Person selbst; entfernen können Ersteller und Spielleitung.
 - Whiteboard, Figuren und Würfelprotokoll dürfen alle Teilnehmenden ändern.
 
-Daten liegen in `db.json` und `users.json` im Datenordner. Bitte nur eine Instanz betreiben.
+Daten liegen in `db.json` und `users.json` im Datenordner (und, falls eingerichtet, im externen Speicher). Bitte nur eine Instanz betreiben.

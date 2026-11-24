@@ -1,18 +1,18 @@
-# Render Blueprint – legt den Web-Service mit dauerhaftem Speicher an.
+# Render Blueprint – kostenloser Web-Service.
+# Die Daten werden extern (Upstash Redis, kostenlos) gesichert und überleben so jeden Deploy und Neustart.
+# Alternative mit bezahltem Plan: siehe README („Dauerhafter Speicher“).
 services:
   - type: web
     name: zombiekalypse
     runtime: node
-    plan: starter            # Persistent Disks gibt es nur auf bezahlten Plänen
+    plan: free
     buildCommand: echo "Keine Abhängigkeiten zu installieren"
     startCommand: node server.js
     healthCheckPath: /healthz
     envVars:
-      - key: DATA_DIR
-        value: /var/data
-      - key: ACCESS_CODE     # optional: Zugangscode für deine Gruppe (beim Anlegen eintragen oder leer lassen)
+      - key: UPSTASH_REDIS_REST_URL    # aus der Upstash-Konsole (REST API → URL)
         sync: false
-    disk:
-      name: zombiekalypse-data
-      mountPath: /var/data
-      sizeGB: 1
+      - key: UPSTASH_REDIS_REST_TOKEN  # aus der Upstash-Konsole (REST API → Token)
+        sync: false
+      - key: ACCESS_CODE               # optional: Zugangscode für deine Gruppe (beim Anlegen eintragen oder leer lassen)
+        sync: false

@@ -298,7 +298,7 @@ async function boot() {
   MYNAME = window.__zkName ? window.__zkName() : "";
   if (!MYNAME) await askName(true);
   renderWho();
-  unsubHome.push(DB.collection(`chars/${UID}/c`).onSnapshot(s => { S.myChars = Object.fromEntries(s.docs.map(d => [d.id, d.data()])); if (S.view === "home") render(); }, writeErr));
+  unsubHome.push(DB.collection(`chars/${UID}/c`).onSnapshot(s => { S.myChars = Object.fromEntries(s.docs.map(d => [d.id, d.data()])); mirrorChars(); if (S.view === "home") render(); }, writeErr));
   unsubHome.push(DB.collection("games").onSnapshot(s => { S.games = Object.fromEntries(s.docs.map(d => [d.id, d.data()])); if (S.view === "home") render(); }, writeErr));
   const h = new URLSearchParams(location.hash.slice(1));
   if (h.get("runde")) openGame(h.get("runde")); else render();
@@ -332,7 +332,7 @@ function homeHTML() {
         <button class="btn sm" onclick="viewChar('${id}')">Ansehen</button><button class="btn sm" onclick="editChar('${id}')">Bearbeiten</button>
         <button class="btn sm" title="Als JSON speichern" onclick="exportChar('${id}')">⇩</button><button class="btn sm danger" title="Löschen" onclick="delChar('${id}')">✕</button></div>`).join("")
         : `<div class="empty">Noch keine Charaktere. Leg deinen ersten Überlebenden an.</div>`}</div>
-      <p class="small mute">Charaktere liegen auf dem Server und gehören deinem Browser. Auf einem anderen Gerät per Export/Import mitnehmen.</p></div>
+      <p class="small mute">Charaktere liegen auf dem Server, mit einer Sicherungskopie in diesem Browser: Gehen sie auf dem Server verloren, stellt die App sie beim nächsten Öffnen wieder her. Auf ein anderes Gerät per Export/Import mitnehmen.</p></div>
     <div class="card"><div class="row"><h2 class="grow">Spielrunden</h2><button class="btn pri" onclick="newGame()">+ Neue Runde</button></div>
       <div class="list">${games.length ? games.map(([id, g]) => `<div class="item"><div class="grow"><div class="t">${esc(g.name || "Runde")}</div><div class="s">angelegt von ${esc(g.ownerName || g.gmName || "?")}${(g.owner || g.gm) === UID ? " (du)" : ""}</div></div>
         <button class="btn sm pri" onclick="openGame('${id}')">Öffnen</button>${(g.owner || g.gm) === UID ? `<button class="btn sm danger" title="Runde löschen" onclick="delGame('${id}')">✕</button>` : ""}</div>`).join("")
@@ -362,8 +362,27 @@ function editChar(id) {
   const d = newChar(); for (const k in d) if (S.edit[k] === undefined) S.edit[k] = d[k];
   S.view = "edit"; render(); window.scrollTo(0, 0);
 }
+// Sicherungskopie der eigenen Charaktere im Browser. Fehlt auf dem Server ein Charakter (z. B. nach einem Neustart
+// ohne dauerhaften Speicher), wird er automatisch wieder hochgeladen. Absichtlich gelöschte bleiben gelöscht.
+const LSX = { get: k => { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+let restoring = false;
+function mirrorChars() {
+  const key = "zk-chars-" + UID, gone = new Set(LSX.get(key + "-deleted") || []), local = LSX.get(key) || {};
+  const missing = Object.keys(local).filter(id => !S.myChars[id] && !gone.has(id));
+  for (const [id, c] of Object.entries(S.myChars)) if (!local[id] || (c.updatedAt || 0) >= (local[id].updatedAt || 0)) local[id] = c;
+  LSX.set(key, local);
+  if (missing.length && !restoring) {
+    restoring = true;
+    Promise.all(missing.map(id => DB.doc(charPath(UID, id)).set(local[id]))).then(() => toast(`${missing.length} Charakter${missing.length > 1 ? "e" : ""} aus der Sicherung im Browser wiederhergestellt.`)).catch(writeErr).finally(() => { restoring = false; });
+  }
+}
+function forgetChar(id) {
+  const key = "zk-chars-" + UID, local = LSX.get(key) || {}, gone = LSX.get(key + "-deleted") || [];
+  delete local[id]; LSX.set(key, local); if (!gone.includes(id)) { gone.push(id); LSX.set(key + "-deleted", gone.slice(-200)); }
+}
 async function delChar(id) {
   if (!await uiConfirm(`„${S.myChars[id]?.name || "Unbenannt"}“ endgültig löschen?`, "Löschen")) return;
+  forgetChar(id);
   DB.doc(charPath(UID, id)).delete().catch(writeErr);
 }
 function exportChar(id) {

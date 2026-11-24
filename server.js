@@ -28,6 +28,13 @@ const PUBLIC_DIR = path.join(__dirname, "public");
 const MAX_DOC = 256 * 1024, MAX_DOCS = 50000, MAX_BODY = 600 * 1024;
 
 // ---------------------------------------------------------------- Speicher
+// Lokal: db.json/users.json im DATA_DIR. Auf Render ohne Persistent Disk geht dieser Ordner bei jedem Deploy verloren.
+// Deshalb optional zusätzlich ein externer Speicher (Upstash Redis über dessen REST-API, kostenloser Plan reicht):
+//   UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN  -> beim Start wird von dort geladen, jede Änderung dorthin gesichert.
+const zlib = require("zlib");
+const KV_URL = (process.env.UPSTASH_REDIS_REST_URL || "").replace(/\/+$/, ""), KV_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || "";
+const KV_KEY = process.env.STORAGE_KEY || "zombiekalypse";
+const KV = !!(KV_URL && KV_TOKEN);
 fs.mkdirSync(DATA_DIR, { recursive: true });
 const DB_FILE = path.join(DATA_DIR, "db.json"), USERS_FILE = path.join(DATA_DIR, "users.json");
 const readJSON = (f, d) => { try { return JSON.parse(fs.readFileSync(f, "utf8")); } catch (e) { return d; } };
@@ -39,6 +46,41 @@ for (const p of docs.keys()) indexAdd(p);
 function indexAdd(p) { const c = parentOf(p); if (!colIndex.has(c)) colIndex.set(c, new Set()); colIndex.get(c).add(p); }
 function indexDel(p) { const c = parentOf(p); colIndex.get(c)?.delete(p); }
 
+async function kv(cmd) {
+  const r = await fetch(KV_URL, { method: "POST", headers: { Authorization: "Bearer " + KV_TOKEN, "Content-Type": "application/json" }, body: JSON.stringify(cmd) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || j.error) throw new Error(j.error || "HTTP " + r.status);
+  return j.result;
+}
+const snapshot = () => zlib.gzipSync(JSON.stringify({ v: 1, ts: Date.now(), docs: Object.fromEntries(docs), users })).toString("base64");
+async function loadRemote() {
+  if (!KV) return;
+  try {
+    const raw = await kv(["GET", KV_KEY]);
+    if (!raw) { console.log("Externer Speicher ist leer – starte mit lokalen Daten."); return; }
+    const data = JSON.parse(zlib.gunzipSync(Buffer.from(raw, "base64")).toString("utf8"));
+    docs.clear(); colIndex.clear();
+    for (const [k, v] of Object.entries(data.docs || {})) { docs.set(k, v); indexAdd(k); }
+    for (const k of Object.keys(users)) delete users[k];
+    Object.assign(users, data.users || {});
+    console.log(`Externer Speicher geladen: ${docs.size} Dokumente, Stand ${new Date(data.ts).toISOString()}`);
+  } catch (e) { console.error("Externer Speicher konnte nicht geladen werden:", e.message); }
+}
+let remoteBusy = null, remoteAgain = false, lastRemoteOk = null;
+async function saveRemote() {
+  if (!KV) return;
+  if (remoteBusy) { remoteAgain = true; return remoteBusy; }
+  remoteBusy = (async () => {
+    do {
+      remoteAgain = false;
+      try { await kv(["SET", KV_KEY, snapshot()]); lastRemoteOk = Date.now(); }
+      catch (e) { console.error("Externes Speichern fehlgeschlagen:", e.message); }
+    } while (remoteAgain);
+    remoteBusy = null;
+  })();
+  return remoteBusy;
+}
+
 let saveTimer = null;
 function persist() {
   clearTimeout(saveTimer);
@@ -46,11 +88,14 @@ function persist() {
     writeAtomic(DB_FILE, JSON.stringify(Object.fromEntries(docs)));
     writeAtomic(USERS_FILE, JSON.stringify(users));
   }, 800);
+  if (KV) { clearTimeout(remoteTimer); remoteTimer = setTimeout(saveRemote, 4000); } // seltener extern sichern (Kontingent schonen)
 }
+let remoteTimer = null;
 function writeAtomic(f, text) { try { fs.writeFileSync(f + ".tmp", text); fs.renameSync(f + ".tmp", f); } catch (e) { console.error("Speichern fehlgeschlagen:", e.message); } }
-function flushNow() { clearTimeout(saveTimer); writeAtomic(DB_FILE, JSON.stringify(Object.fromEntries(docs))); writeAtomic(USERS_FILE, JSON.stringify(users)); }
-process.on("SIGTERM", () => { flushNow(); process.exit(0); });
-process.on("SIGINT", () => { flushNow(); process.exit(0); });
+async function flushNow() { clearTimeout(saveTimer); clearTimeout(remoteTimer); writeAtomic(DB_FILE, JSON.stringify(Object.fromEntries(docs))); writeAtomic(USERS_FILE, JSON.stringify(users)); if (KV) { await remoteBusy; await saveRemote(); } }
+const shutdown = () => { const t = setTimeout(() => process.exit(0), 8000); flushNow().finally(() => { clearTimeout(t); process.exit(0); }); };
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);
 
 // ---------------------------------------------------------------- Pfade & Rechte
 const SEG = /^[A-Za-z0-9_\-.~:@+]{1,200}$/;
@@ -225,7 +270,7 @@ const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; cha
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, "http://x");
   try {
-    if (req.method === "GET" && url.pathname === "/healthz") return json(res, 200, { ok: true, docs: docs.size, sessions: sessions.size });
+    if (req.method === "GET" && url.pathname === "/healthz") return json(res, 200, { ok: true, docs: docs.size, sessions: sessions.size, storage: KV ? "extern" : "lokal", lastRemoteSave: lastRemoteOk, keepalive: !!SELF_URL, tableOpen: tableOpen(), lastPing });
 
     if (req.method === "POST" && url.pathname === "/api/hello") {
       const b = await readBody(req);
@@ -279,4 +324,17 @@ const server = http.createServer(async (req, res) => {
   }
 });
 server.keepAliveTimeout = 65000;
-server.listen(PORT, () => console.log(`Zombiekalypse-Server läuft auf Port ${PORT} · Daten: ${DATA_DIR}${ACCESS_CODE ? " · Zugangscode aktiv" : ""}`));
+// ---------------------------------------------------------------- Wachhalten
+// Kostenlose Render-Dienste schlafen nach 15 Minuten ohne Anfragen ein. Solange jemand die Seite offen hat
+// (aktive Sitzung in den letzten 15 Minuten), ruft sich der Server alle 10 Minuten selbst über seine öffentliche Adresse auf.
+// Ist niemand mehr da, hört der Ping auf und der Dienst darf schlafen. Die Seite selbst pingt zusätzlich (adapter.js).
+const SELF_URL = (process.env.KEEPALIVE_URL || process.env.RENDER_EXTERNAL_URL || "").replace(/\/+$/, "");
+const KEEPALIVE_MS = Math.max(0.05, Number(process.env.KEEPALIVE_MINUTES) || 10) * 60 * 1000;
+let lastPing = null;
+function tableOpen() { const now = Date.now(); for (const s of sessions.values()) if (s.res || now - s.seen < 15 * 60 * 1000) return true; return false; }
+if (SELF_URL) setInterval(() => {
+  if (!tableOpen()) return;
+  fetch(SELF_URL + "/healthz?ping=server", { cache: "no-store" }).then(() => { lastPing = Date.now(); }).catch(e => console.error("Ping fehlgeschlagen:", e.message));
+}, KEEPALIVE_MS);
+
+loadRemote().then(() => server.listen(PORT, () => console.log(`Zombiekalypse-Server läuft auf Port ${PORT} · Daten: ${DATA_DIR}${KV ? " + externer Speicher" : ""}${SELF_URL ? " · Wachhalten aktiv" : ""}${ACCESS_CODE ? " · Zugangscode aktiv" : ""}`)));
