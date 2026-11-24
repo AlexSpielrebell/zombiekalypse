@@ -10,7 +10,7 @@ eigener kleiner Server, kein Konto nötig. Wer die Adresse öffnet, gibt einmal 
   Eine Übersicht prüft Attribut- und Fertigkeitspunkte und die Erstellungsgrenzen und rechnet Lebenspunkte, Ausdauer und Initiative aus.
 - **Spielrunden**: Beim Beitreten wählt jede Person, ob sie als Spieler/in (mit einem ihrer Charaktere) oder als Spielleitung dabei ist. Die Rolle lässt sich jederzeit wechseln, mehrere Spielleitungen sind möglich. Wer die Runde anlegt, muss nicht die Spielleitung sein.
 - **Charakterbögen der Gruppe** live für alle sichtbar. Wer den Charakter besitzt, kann LP, Ausdauer und Stresswürfel direkt anpassen
-  und Fertigkeiten für die Steigerung markieren.
+  und Fertigkeiten für die Steigerung markieren. Ein Klick auf Attribut, Fertigkeit oder Waffe im eigenen Bogen übernimmt den Wert in den Würfelautomaten (bei Waffen inkl. Angriffsfertigkeit; Zusatzerfolge wandern automatisch in den Schadenswurf).
 - **Whiteboard** für alle: Freihand, Linien, Pfeile, Rechtecke, Ellipsen, Text, Marker (🧟 💀 🚗 …), Farben, Verschieben, Radierer.
   Jeder Charakter hat eine Figur mit Lebenspunkte-Ring; bewegen dürfen sie ihr Besitzer und die Spielleitung. Nur die Spielleitung kann die Fläche leeren.
 - **Kampf & Initiative** (Reiter „⚔ Kampf“): Die Spielleitung bereitet einen Kampf vor und trägt Gegner ein (Name, Anzahl, Basiswert,
