@@ -156,6 +156,8 @@ table.wt th{color:var(--mute);font-weight:600;font-size:12px;text-transform:uppe
 #wb[data-tool=select] .wbo{cursor:move}#wb[data-tool=erase] .wbo:hover{opacity:.5}
 .wb-text{font-family:var(--font);font-weight:700;user-select:none}
 .wb-selbox{fill:none;stroke:#fff;stroke-width:2;stroke-dasharray:6 5;pointer-events:none}
+.wb-h{fill:var(--acc);stroke:#11160b;stroke-width:2;pointer-events:all;touch-action:none}
+.wb-h[data-h=nw],.wb-h[data-h=se]{cursor:nwse-resize}.wb-h[data-h=ne],.wb-h[data-h=sw]{cursor:nesw-resize}
 .tok.can{cursor:grab}
 .tok-name{fill:#f2f4ea;font-weight:700;font-size:15px;paint-order:stroke;stroke:#000a;stroke-width:4px;pointer-events:none}
 .tok-ini{fill:#11160b;font-family:var(--head);font-size:30px;pointer-events:none}
@@ -1267,7 +1269,8 @@ function wbRender() {
   if (G.sel && G.board[G.sel]) {
     const g = svg.querySelector(`.wbo[data-id="${G.sel}"]`);
     if (g) { try { const b = g.getBBox(), o = G.board[G.sel], ox = (ov && ov.id === G.sel ? ov.ox : o.ox) || 0, oy = (ov && ov.id === G.sel ? ov.oy : o.oy) || 0;
-      selG.innerHTML = `<rect x="${b.x + ox - 8}" y="${b.y + oy - 8}" width="${b.width + 16}" height="${b.height + 16}" class="wb-selbox"/>`; } catch (e) {} }
+      const x0 = b.x + ox - 8, y0 = b.y + oy - 8, x1 = b.x + b.width + ox + 8, y1 = b.y + b.height + oy + 8, H = 16 / Math.max(.6, G.zoom);
+      selG.innerHTML = `<rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" class="wb-selbox"/>` + [["nw", x0, y0], ["ne", x1, y0], ["sw", x0, y1], ["se", x1, y1]].map(([h, x, y]) => `<rect class="wb-h" data-h="${h}" x="${x - H / 2}" y="${y - H / 2}" width="${H}" height="${H}" rx="3"><title>Ziehen, um die Größe zu ändern</title></rect>`).join(""); } catch (e) {} }
   }
   const players = Object.entries(G.members).filter(([, m]) => m.charId && G.chars[`${m.charOwner}/${m.charId}`]);
   $("#wb-toks").innerHTML = players.map(([u, m], i) => {
@@ -1300,6 +1303,15 @@ document.addEventListener("pointerdown", async e => {
     WD = { mode: "tok", uid: u, sx: p[0], sy: p[1], x0: t.x, y0: t.y, x: t.x, y: t.y };
     svg.setPointerCapture(e.pointerId); e.preventDefault(); return;
   }
+  const hdl = e.target.closest(".wb-h");
+  if (hdl && G.tool === "select" && G.sel && G.board[G.sel]) {
+    const g = svg.querySelector(`.wbo[data-id="${G.sel}"]`); if (!g) return;
+    const b = g.getBBox(), o = G.board[G.sel], h = hdl.dataset.h;
+    const ax = h.includes("w") ? b.x + b.width : b.x, ay = h.includes("n") ? b.y + b.height : b.y; // gegenüberliegende Ecke bleibt fest
+    const hx = h.includes("w") ? b.x : b.x + b.width, hy = h.includes("n") ? b.y : b.y + b.height;
+    WD = { mode: "resize", id: G.sel, ax, ay, hx, hy, ox: +o.ox || 0, oy: +o.oy || 0, gx: p[0] - (+o.ox || 0) - hx, gy: p[1] - (+o.oy || 0) - hy, sx: 1, sy: 1, uniform: ["text", "stamp"].includes(o.t) || e.shiftKey };
+    svg.setPointerCapture(e.pointerId); e.preventDefault(); return;
+  }
   const obj = e.target.closest(".wbo");
   if (G.tool === "erase") { if (obj) wbDelete(obj.dataset.id); return; }
   if (G.tool === "select") {
@@ -1329,6 +1341,15 @@ document.addEventListener("pointermove", e => {
     svg.querySelector(`.tok[data-tok="${WD.uid}"]`)?.setAttribute("transform", `translate(${WD.x} ${WD.y})`);
     return;
   }
+  if (WD.mode === "resize") {
+    const lx = p[0] - WD.ox - WD.gx, ly = p[1] - WD.oy - WD.gy, dx = WD.hx - WD.ax, dy = WD.hy - WD.ay;
+    let sx = Math.abs(dx) > 1 ? (lx - WD.ax) / dx : 1, sy = Math.abs(dy) > 1 ? (ly - WD.ay) / dy : 1;
+    sx = Math.max(.05, Math.min(20, sx)); sy = Math.max(.05, Math.min(20, sy));
+    if (WD.uniform || e.shiftKey) { const k = Math.abs(dx) < 2 ? sy : Math.abs(dy) < 2 ? sx : Math.max(sx, sy); sx = sy = k; }
+    WD.sx = sx; WD.sy = sy;
+    svg.querySelector(`.wbo[data-id="${WD.id}"]`)?.setAttribute("transform", `translate(${WD.ox} ${WD.oy}) translate(${WD.ax} ${WD.ay}) scale(${sx} ${sy}) translate(${-WD.ax} ${-WD.ay})`);
+    $("#wb-sel").innerHTML = ""; return;
+  }
   if (WD.mode === "move") {
     WD.ox = WD.ox0 + p[0] - WD.sx; WD.oy = WD.oy0 + p[1] - WD.sy;
     svg.querySelector(`.wbo[data-id="${WD.id}"]`)?.setAttribute("transform", `translate(${WD.ox} ${WD.oy})`);
@@ -1350,6 +1371,10 @@ document.addEventListener("pointerup", () => {
     DB.doc(`games/${G.id}/tokens/${d.uid}`).set({ x, y, by: UID, ts: Date.now() }).catch(writeErr);
     return;
   }
+  if (d.mode === "resize") {
+    if (d.sx !== 1 || d.sy !== 1) wbUpdate(d.id, wbScaled(G.board[d.id], d.ax, d.ay, d.sx, d.sy)); else wbRender();
+    return;
+  }
   if (d.mode === "move") {
     if (d.ox !== d.ox0 || d.oy !== d.oy0) wbUpdate(d.id, { ox: Math.round(d.ox), oy: Math.round(d.oy) });
     wbRender(); return;
@@ -1363,6 +1388,14 @@ document.addEventListener("pointerup", () => {
 document.addEventListener("keydown", e => {
   if ((e.key === "Delete" || e.key === "Backspace") && S.G?.sel && S.G.tab === "board" && !e.target.closest("input,textarea,select")) { e.preventDefault(); wbDelete(S.G.sel); }
 });
+// Skalierung fest in die Geometrie übernehmen (Strichstärke bleibt gleich, Text/Marker wachsen mit)
+function wbScaled(o, ax, ay, sx, sy) {
+  const r = v => Math.round(v * 10) / 10, X = x => r(ax + (x - ax) * sx), Y = y => r(ay + (y - ay) * sy);
+  if (o.t === "path") return { p: o.p.map(([x, y]) => [X(x), Y(y)]) };
+  if (["line", "arrow", "rect", "ellipse"].includes(o.t)) return { x1: X(o.x1), y1: Y(o.y1), x2: X(o.x2), y2: Y(o.y2) };
+  if (o.t === "text" || o.t === "stamp") return { x: X(o.x), y: Y(o.y), s: r(Math.max(6, Math.min(600, (o.s || (o.t === "stamp" ? 48 : 32)) * sx))) };
+  return {};
+}
 function parseTr(g) { const m = (g.getAttribute("transform") || "").match(/translate\(([-\d.]+)[ ,]+([-\d.]+)/); return m ? { x: +m[1], y: +m[2] } : { x: 0, y: 0 }; }
 async function wbAdd(o) {
   const G = S.G; Object.keys(o).forEach(k => o[k] === undefined && delete o[k]);

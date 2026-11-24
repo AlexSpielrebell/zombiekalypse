@@ -19,7 +19,7 @@ eigener kleiner Server, kein Konto nötig. Wer die Adresse öffnet, gibt einmal 
 - **Spielrunden**: Beim Beitreten wählt jede Person, ob sie als Spieler/in (mit einem ihrer Charaktere) oder als Spielleitung dabei ist. Die Rolle lässt sich jederzeit wechseln, mehrere Spielleitungen sind möglich. Wer die Runde anlegt, muss nicht die Spielleitung sein.
 - **Charakterbögen der Gruppe** live für alle sichtbar. Wer den Charakter besitzt, kann LP, Ausdauer und Stresswürfel direkt anpassen
   und Fertigkeiten für die Steigerung markieren. Ein Klick auf Attribut, Fertigkeit oder Waffe im eigenen Bogen übernimmt den Wert in den Würfelautomaten (bei Waffen inkl. Angriffsfertigkeit; Zusatzerfolge wandern automatisch in den Schadenswurf).
-- **Whiteboard** für alle: Freihand, Linien, Pfeile, Rechtecke, Ellipsen, Text, Marker (🧟 💀 🚗 …), Farben, Verschieben, Radierer.
+- **Whiteboard** für alle: Freihand, Linien, Pfeile, Rechtecke, Ellipsen, Text, Marker (🧟 💀 🚗 …), Farben, Verschieben, Radierer. Ausgewählte Objekte lassen sich an den vier Eckgriffen stufenlos vergrößern und verkleinern (Shift = Seitenverhältnis halten; Text und Marker immer proportional).
   Jeder Charakter hat eine Figur mit Lebenspunkte-Ring; bewegen dürfen sie ihr Besitzer und die Spielleitung. Nur die Spielleitung kann die Fläche leeren.
 - **Kampf & Initiative** (Reiter „⚔ Kampf“): Die Spielleitung bereitet einen Kampf vor und trägt Gegner ein (Name, Anzahl, Basiswert,
   wahlweise mit gemeinsamer Initiative für Gruppen). Charaktere fügen sich per Button hinzu. Jede Runde würfeln alle automatisch 2W10 + Basiswert
