@@ -326,7 +326,7 @@ function homeHTML() {
   const games = Object.entries(S.games).sort((a, b) => (b[1].createdAt || 0) - (a[1].createdAt || 0));
   return `<div class="hero"><h1>Willkommen am Spieltisch</h1><p>Lege deine Charaktere an und tritt einer Spielrunde bei. Dort seht ihr alle Charakterbögen der Gruppe, würfelt gemeinsam und zeichnet zusammen auf dem Whiteboard.</p></div>
   <div class="home">
-    <div class="card"><div class="row"><h2 class="grow">Meine Charaktere</h2><button class="btn" onclick="importChar()">Importieren</button><button class="btn pri" onclick="editChar()">+ Neuer Charakter</button></div>
+    <div class="card"><div class="row"><h2 class="grow">Meine Charaktere</h2><button class="btn" title="Charakter aus JSON-Export oder Excel-Charakterblatt (.xlsx) importieren" onclick="importChar()">Importieren (JSON/Excel)</button><button class="btn pri" onclick="editChar()">+ Neuer Charakter</button></div>
       <div class="list">${chars.length ? chars.map(([id, c]) => `<div class="item"><div class="av" style="--c:${esc(c.color)};width:38px;height:38px;font-size:16px">${esc(initials(c.name))}</div>
         <div class="grow"><div class="t">${esc(c.name || "Unbenannt")}</div><div class="s">${esc(c.concept || "")} ${ATTRS.map(([a, n]) => `${n[0]}${c.attrs?.[a] ?? "?"}`).join(" · ")}</div></div>
         <button class="btn sm" onclick="viewChar('${id}')">Ansehen</button><button class="btn sm" onclick="editChar('${id}')">Bearbeiten</button>
@@ -390,8 +390,9 @@ function exportChar(id) {
   const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = (c.name || "charakter").replace(/[^\wäöüÄÖÜß-]+/g, "_") + ".json"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 function importChar() {
-  const inp = document.createElement("input"); inp.type = "file"; inp.accept = ".json,application/json";
+  const inp = document.createElement("input"); inp.type = "file"; inp.accept = ".json,.xlsx,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
   inp.onchange = async () => {
+    if (/\.xlsx$/i.test(inp.files[0]?.name || "")) { try { await importExcel(inp.files[0]); } catch (e) { console.error(e); toast("Excel-Import fehlgeschlagen: " + e.message); } return; }
     try { const j = JSON.parse(await inp.files[0].text()); const c = j.char || j; if (!c.attrs) throw new Error("Keine Charakterdatei"); c.updatedAt = Date.now(); await DB.doc(charPath(UID, "c" + rid())).set(c); toast("Charakter importiert."); }
     catch (e) { toast("Import fehlgeschlagen: " + e.message); }
   };
@@ -472,6 +473,142 @@ async function edRandom() {
   if (filled && !await uiConfirm("Alle Angaben dieses Charakters durch einen Zufallscharakter ersetzen?", "Ersetzen")) return;
   const r = randomChar(c.attrBudget, c.skillBudget, c.color); r.createdAt = c.createdAt || Date.now();
   S.edit = r; render(); scheduleSave(); toast(`${r.name}, ${r.concept}, ist bereit. Passe an, was du willst.`);
+}
+
+// ===================== Import aus Excel-Charakterblatt =====================
+// Minimaler .xlsx-Leser ohne Bibliothek: ZIP-Verzeichnis lesen, Einträge mit DecompressionStream entpacken.
+async function unzipEntries(buf) {
+  const dv = new DataView(buf), u8 = new Uint8Array(buf), dec = new TextDecoder();
+  let eocd = -1;
+  for (let i = buf.byteLength - 22; i >= Math.max(0, buf.byteLength - 70000); i--) if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  if (eocd < 0) throw new Error("Keine gültige Excel-Datei (.xlsx).");
+  const n = dv.getUint16(eocd + 10, true); let p = dv.getUint32(eocd + 16, true);
+  const out = {};
+  for (let k = 0; k < n; k++) {
+    if (dv.getUint32(p, true) !== 0x02014b50) break;
+    const method = dv.getUint16(p + 10, true), csize = dv.getUint32(p + 20, true), nlen = dv.getUint16(p + 28, true), elen = dv.getUint16(p + 30, true), clen = dv.getUint16(p + 32, true), off = dv.getUint32(p + 42, true);
+    const name = dec.decode(u8.subarray(p + 46, p + 46 + nlen));
+    out[name] = { method, csize, off };
+    p += 46 + nlen + elen + clen;
+  }
+  return {
+    async text(name) {
+      const e = out[name]; if (!e) return null;
+      const start = e.off + 30 + dv.getUint16(e.off + 26, true) + dv.getUint16(e.off + 28, true), raw = u8.subarray(start, start + e.csize);
+      if (e.method === 0) return dec.decode(raw);
+      const ds = new Blob([raw]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+      return await new Response(ds).text();
+    },
+    names: Object.keys(out)
+  };
+}
+async function readXlsxGrid(file) {
+  const z = await unzipEntries(await file.arrayBuffer()), P = new DOMParser();
+  const xml = async n => { const t = await z.text(n); return t ? P.parseFromString(t, "application/xml") : null; };
+  const ss = [], sst = await xml("xl/sharedStrings.xml");
+  if (sst) for (const si of sst.getElementsByTagName("si")) ss.push([...si.getElementsByTagName("t")].map(t => t.textContent).join(""));
+  const sheetName = z.names.filter(n => /^xl\/worksheets\/sheet\d+\.xml$/.test(n)).sort((a, b) => parseInt(a.match(/\d+/)) - parseInt(b.match(/\d+/)))[0];
+  if (!sheetName) throw new Error("Kein Tabellenblatt gefunden.");
+  const doc = await xml(sheetName), grid = {};
+  for (const c of doc.getElementsByTagName("c")) {
+    const ref = c.getAttribute("r"), t = c.getAttribute("t"), v = c.getElementsByTagName("v")[0]?.textContent;
+    let val = null;
+    if (t === "s") val = ss[+v]; else if (t === "inlineStr") val = [...c.getElementsByTagName("t")].map(x => x.textContent).join(""); else if (t === "str" || t === "e") val = v ?? null; else if (t === "b") val = v === "1"; else if (v !== undefined) val = Number(v);
+    if (val === null || val === undefined || (typeof val === "string" && !val.trim())) continue;
+    const m = ref.match(/^([A-Z]+)(\d+)$/); if (!m) continue;
+    (grid[+m[2]] ||= {})[m[1]] = typeof val === "string" ? val.trim() : val;
+  }
+  return grid;
+}
+const colNum = c => [...c].reduce((t, ch) => t * 26 + ch.charCodeAt(0) - 64, 0);
+const norm = s => String(s ?? "").toLowerCase().replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss").replace(/[^a-z0-9]/g, "");
+const SKILL_ALIASES = { erstehilfe: "erstehilfe", informationsbeschaffung: "infos", geistigestabilitaet: "stabilitaet", waffenloserkampf: "waffenlos", taeuschen: "taeuschen", ueberzeugen: "ueberzeugen", einschuechtern: "einschuechtern" };
+function skillKeyFor(name) { const n = norm(name); if (SKILL_ALIASES[n]) return SKILL_ALIASES[n]; for (const [k, i] of Object.entries(SKILL_INFO)) if (norm(i.name) === n) return k; return null; }
+function attrKeyFor(name) { const n = norm(name); return { koerper: "koerper", hirn: "hirn", herz: "herz", willen: "willen", wille: "willen" }[n] || null; }
+function charFromGrid(grid) {
+  const rows = Object.keys(grid).map(Number).sort((a, b) => a - b), notes = [], warn = [];
+  const cells = r => Object.entries(grid[r] || {}).sort((a, b) => colNum(a[0]) - colNum(b[0]));
+  const find = re => { for (const r of rows) for (const [col, v] of cells(r)) if (typeof v === "string" && re.test(v)) return { r, col, v }; return null; };
+  const rightOf = (hit, max = 4) => { if (!hit) return null; for (const [col, v] of cells(hit.r)) { const d = colNum(col) - colNum(hit.col); if (d > 0 && d <= max) return v; } return null; };
+  const label = (re, max) => { const v = rightOf(find(re), max); return v === null || v === "---" ? "" : String(v).replace(/\s*\n\s*/g, " "); };
+  const c = newChar(); c.traits = []; c.weapons = []; c.custom = []; c.skills = {};
+  c.name = label(/^name$/i); c.concept = label(/^beruf$/i); c.age = label(/^alter$/i); c.build = label(/^(größe|groesse|statur)$/i);
+  const g = label(/^geschlecht$/i); c.gender = /^m/i.test(g) ? "männlich" : /^(w|f)/i.test(g) ? "weiblich" : g;
+  for (const [re, n] of [[/^spieler/i, "Spieler/in"], [/^wohnort$/i, "Wohnort"], [/^herkunft$/i, "Herkunft"], [/^glaube$/i, "Glaube"], [/^zitat$/i, "Zitat"]]) { const v = label(re); if (v) notes.push(`${n}: ${v}`); }
+  // Attribute: Kopfzeile mit Körper/Hirn/Herz/Willen, Werte in der Zeile darunter
+  const ak = find(/^k(ö|oe)rper$/i);
+  if (ak) {
+    for (const [col, v] of cells(ak.r)) { const k = attrKeyFor(v); const val = grid[ak.r + 1]?.[col]; if (k && typeof val === "number") c.attrs[k] = val; if (typeof v === "string" && /(\d+)\s*punkte/i.test(v)) { const b = +v.match(/(\d+)/)[1]; if ([10, 13, 16].includes(b)) c.attrBudget = b; } }
+  } else warn.push("Attribute nicht gefunden.");
+  const sm = rightOf(find(/^stressw(ü|ue)rfel/i)); if (typeof sm === "number") c.stressMax = sm;
+  const st = rightOf(find(/^stress$/i)); if (typeof st === "number") c.stress = st;
+  const lp = rightOf(find(/^lernpunkte$/i)); if (typeof lp === "number") c.lp = lp;
+  // Fertigkeiten: Abschnitt „Fertigkeiten“ mit Spalten Attribut / Wert
+  const fh = find(/^fertigkeiten$/i);
+  if (fh) {
+    const hdr = cells(fh.r), aCol = hdr.find(([, v]) => /^attribut$/i.test(v))?.[0], wCol = hdr.find(([, v]) => /^wert$/i.test(v))?.[0];
+    for (const r of rows.filter(r => r > fh.r)) {
+      const name = grid[r][fh.col], val = grid[r][wCol];
+      if (typeof name === "string" && /waffen\s*&|r(ü|ue)stung/i.test(name)) break;
+      if (typeof name !== "string" || typeof val !== "number") continue;
+      const key = skillKeyFor(name), attr = attrKeyFor(grid[r][aCol]);
+      if (key) { c.skills[key] = { v: val, mark: false }; if (attr && attr !== SKILL_INFO[key].attr) warn.push(`${name}: im Blatt unter ${ATTR_NAME[attr]}, laut Regeln unter ${ATTR_NAME[SKILL_INFO[key].attr]}.`); }
+      else { c.custom.push({ name, attr: attr || "koerper", v: val, mark: false }); warn.push(`„${name}“ steht nicht in der Fertigkeitsliste und wurde als eigene Fertigkeit (${ATTR_NAME[attr || "koerper"]}) übernommen.`); }
+    }
+  } else warn.push("Fertigkeiten nicht gefunden.");
+  // Vor- & Nachteile: Unterüberschriften „Vorteile“ / „Nachteile“, Würfelbonus in der „+/-“-Spalte
+  const vh = find(/^vor-?\s*&\s*nachteile$/i), eh = find(/^ausr(ü|ue)stung$/i), wh = find(/^waffen\s*&/i);
+  const sectionEnd = start => Math.min(...[eh?.r, wh?.r, Infinity].filter(x => x > start));
+  if (vh) {
+    const pm = cells(vh.r).find(([, v]) => /\+\s*\/\s*-/.test(v))?.[0];
+    let kind = "vorteil";
+    for (const r of rows.filter(r => r > vh.r && r < sectionEnd(vh.r))) {
+      const name = grid[r][vh.col]; if (typeof name !== "string") continue;
+      if (/^vorteile$/i.test(name)) { kind = "vorteil"; continue; } if (/^nachteile$/i.test(name)) { kind = "nachteil"; continue; }
+      const m = Math.abs(Number(String(grid[r][pm] ?? "").replace(/[^\d.-]/g, "")) || 1);
+      c.traits.push({ name, kind, size: m >= 2 ? "gross" : "klein", free: false });
+    }
+    const firstSmall = c.traits.find(t => t.kind === "vorteil" && t.size === "klein"); if (firstSmall) firstSmall.free = true;
+  }
+  // Ausrüstung → Inventar
+  if (eh) {
+    const pm = cells(eh.r).find(([, v]) => /\+\s*\/\s*-/.test(v))?.[0], inv = [];
+    for (const r of rows.filter(r => r > eh.r && r < sectionEnd(eh.r))) { const name = grid[r][eh.col]; if (typeof name === "string" && !/^(ausdauer|leben)$/i.test(name)) inv.push(name + (grid[r][pm] !== undefined ? ` (${grid[r][pm]})` : "")); }
+    c.inventory = inv.join("\n");
+  }
+  // Waffen & Rüstungen
+  if (wh) {
+    const hdr = cells(wh.r), dCol = hdr.find(([, v]) => /^wert$/i.test(v))?.[0], xCol = hdr.find(([, v]) => /^extra$/i.test(v))?.[0];
+    const ar = cells(wh.r).find(([, v]) => /^r(ü|ue)stung$/i.test(v));
+    for (const r of rows.filter(r => r > wh.r)) {
+      const name = grid[r][wh.col]; if (typeof name !== "string") continue;
+      const preset = WEAPONS.find(w => norm(w[0]).startsWith(norm(name)) || norm(name).startsWith(norm(w[0]).slice(0, 8)));
+      const dmg = typeof grid[r][dCol] === "number" ? grid[r][dCol] : parseInt(grid[r][dCol]) || preset?.[1] || 2;
+      c.weapons.push({ name, dmg, note: [grid[r][xCol], preset?.[2]].filter(Boolean).join(" · ") });
+    }
+    if (ar) for (const r of rows.filter(r => r > wh.r && r < wh.r + 6)) {
+      const name = grid[r][ar[0]]; if (typeof name !== "string" || /^(ausdauer|leben)$/i.test(name)) continue;
+      const preset = ARMORS.find(a => norm(a[0]).includes(norm(name)) || norm(name).includes(norm(a[0]).slice(0, 8)));
+      c.armor = { name, melee: preset?.[1] ?? 7, ranged: preset?.[2] ?? 6 }; break;
+    }
+  }
+  // Aktuelle Ausdauer / Leben
+  const curOf = re => { const h = find(re); if (!h) return null; const row = cells(h.r), i = row.findIndex(([, v]) => /^aktuell/i.test(v)); const v = i >= 0 ? Number(row[i + 1]?.[1]) : NaN; return isNaN(v) ? null : v; };
+  const sta = curOf(/^ausdauer$/i), hp = curOf(/^leben(spunkte)?$/i);
+  if (sta !== null && sta < staMax(c)) c.sta = sta;
+  if (hp !== null && hp < hpMax(c)) c.hp = hp;
+  if (notes.length) c.desc = notes.join("\n");
+  // Fertigkeitspunkte-Stufe passend zur Summe wählen
+  const p = points(c); c.skillBudget = (SKILL_BUDGETS.find(([b]) => b >= p.skillTotal) || SKILL_BUDGETS[SKILL_BUDGETS.length - 1])[0];
+  if (!c.name) warn.push("Kein Name gefunden.");
+  return { c, warn };
+}
+async function importExcel(file) {
+  const { c, warn } = charFromGrid(await readXlsxGrid(file));
+  c.createdAt = Date.now();
+  S.editId = "c" + rid(); S.edit = c; S.view = "edit"; render(); window.scrollTo(0, 0); await saveEdit();
+  if (warn.length) await modal(`<p><b>${esc(c.name || "Charakter")}</b> wurde importiert. Bitte prüfen:</p><ul class="small" style="margin:0 0 12px;padding-left:18px">${warn.map(w => `<li>${esc(w)}</li>`).join("")}</ul><div class="row" style="justify-content:flex-end"><button class="btn pri" data-ok>OK</button></div>`);
+  else toast(`${c.name || "Charakter"} aus Excel importiert.`);
 }
 
 // ===================== Charakter-Editor =====================

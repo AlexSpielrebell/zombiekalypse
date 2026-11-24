@@ -8,6 +8,10 @@ eigener kleiner Server, kein Konto nötig. Wer die Adresse öffnet, gibt einmal 
 - **Charaktere anlegen und bearbeiten** nach den aktuellen Regeln (oder per „🎲 Zufallscharakter“ komplett auswürfeln lassen, passend zu einem von 14 Berufen und den gewählten Punktzahlen): vier Attribute, Fertigkeitsliste mit Spezialisierungen,
   Vor- und Nachteile, Waffen und Rüstung (mit Vorlagen aus den Regeltabellen), Inventar, Lernpunkte.
   Eine Übersicht prüft Attribut- und Fertigkeitspunkte und die Erstellungsgrenzen und rechnet Lebenspunkte, Ausdauer und Initiative aus.
+- **Import aus Excel**: „Importieren (JSON/Excel)“ liest ein Charakterblatt im Format der Excel-Vorlage (.xlsx) ein: Name, Beruf, Alter,
+  Geschlecht, Größe, Herkunft u. Ä., Attribute, Fertigkeiten (unbekannte werden als eigene Fertigkeit übernommen), Vor- und Nachteile
+  (±2 = groß, ±1 = klein), Ausrüstung, Waffen, Stresswürfel, Lernpunkte und aktuelle LP/Ausdauer. Die Felder werden über ihre
+  Beschriftung gefunden, kleine Verschiebungen im Blatt sind also kein Problem. Danach öffnet sich der Editor zum Prüfen.
 - **Spielrunden**: Beim Beitreten wählt jede Person, ob sie als Spieler/in (mit einem ihrer Charaktere) oder als Spielleitung dabei ist. Die Rolle lässt sich jederzeit wechseln, mehrere Spielleitungen sind möglich. Wer die Runde anlegt, muss nicht die Spielleitung sein.
 - **Charakterbögen der Gruppe** live für alle sichtbar. Wer den Charakter besitzt, kann LP, Ausdauer und Stresswürfel direkt anpassen
   und Fertigkeiten für die Steigerung markieren. Ein Klick auf Attribut, Fertigkeit oder Waffe im eigenen Bogen übernimmt den Wert in den Würfelautomaten (bei Waffen inkl. Angriffsfertigkeit; Zusatzerfolge wandern automatisch in den Schadenswurf).
