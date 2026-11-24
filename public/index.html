@@ -374,6 +374,82 @@ function importChar() {
   inp.click();
 }
 
+// ===================== Zufallscharakter =====================
+// Archetypen: Gewichte für Körper/Hirn/Herz/Willen, Hauptfertigkeit, bevorzugte Fertigkeiten, passende Ausrüstung
+const ARCHETYPES = [
+  { c: "Mechaniker/in", w: [3, 3, 1, 2], main: "technik", sk: ["technik", "fahrzeuge", "kraftakt", "nahkampf", "elektronik", "beobachten", "handeln"], wp: ["Handaxt", "Bolzenschneider", "Hammer"], ar: "Biker-Lederjacke", inv: ["Werkzeugkasten", "Taschenlampe", "Klebeband", "Kanister mit 5 l Benzin"] },
+  { c: "Krankenpfleger/in", w: [2, 3, 3, 3], main: "erstehilfe", sk: ["erstehilfe", "empathie", "selbstbeherrschung", "stabilitaet", "beobachten", "konzentration", "ausweichen"], wp: ["Messer / Jagddolch"], ar: "Dicke Winterjacke", inv: ["Verbandskasten", "Schmerzmittel", "Desinfektionsmittel", "Schere"] },
+  { c: "Polizist/in", w: [3, 2, 2, 3], main: "handfeuerwaffen", sk: ["handfeuerwaffen", "beobachten", "einschuechtern", "waffenlos", "fahrzeuge", "empathie", "athletik"], wp: ["Revolver (.38 Special)", "Stuhlbein / Knüppel"], ar: "Leichte Kevlarweste (Polizei)", inv: ["Handschellen", "Funkgerät", "2 Schachteln Munition .38", "Taschenlampe"] },
+  { c: "Jäger/in", w: [3, 3, 1, 2], main: "langwaffen", sk: ["langwaffen", "naturkunde", "heimlichkeit", "beobachten", "instinkt", "bogen", "erstehilfe"], wp: ["Jagdgewehr (Repetierer)", "Messer / Jagddolch"], ar: "Dicke Winterjacke", inv: ["Fernglas", "Kompass", "Trockenfleisch", "Schachtel Gewehrmunition"] },
+  { c: "Lehrer/in", w: [1, 4, 3, 2], main: "allgemeinwissen", sk: ["allgemeinwissen", "ueberzeugen", "vortragen", "empathie", "naturkunde", "konzentration", "erstehilfe"], wp: ["Baseballschläger (Alu)"], ar: "Keine / normale Kleidung", inv: ["Notizbuch", "Landkarte der Region", "Thermoskanne", "Fahrrad"] },
+  { c: "Feuerwehrmann/-frau", w: [4, 2, 2, 3], main: "athletik", sk: ["athletik", "kraftakt", "erstehilfe", "selbstbeherrschung", "nahkampf", "fahrzeuge", "stabilitaet"], wp: ["Feuerwehraxt"], ar: "Dicke Winterjacke", inv: ["Atemschutzmaske", "Brechstange", "Seil (20 m)", "Feuerlöscher"] },
+  { c: "Soldat/in", w: [4, 2, 1, 3], main: "langwaffen", sk: ["langwaffen", "handfeuerwaffen", "athletik", "wurfwaffen", "heimlichkeit", "selbstbeherrschung", "waffenlos"], wp: ["M16 (Sturmgewehr)", "Messer / Jagddolch"], ar: "Militär-Splitterschutzweste", inv: ["2 Magazine", "Feldflasche", "Notrationen", "Splittergranate"] },
+  { c: "Barkeeper/in", w: [2, 1, 4, 2], main: "empathie", sk: ["empathie", "charme", "handeln", "infos", "taeuschen", "waffenlos", "verspotten"], wp: ["Stuhlbein / Knüppel", "Molotow-Cocktail"], ar: "Biker-Lederjacke", inv: ["Flasche Whiskey", "Feuerzeug", "Zigaretten (Tauschware)", "Bargeld"] },
+  { c: "Chemiestudent/in", w: [1, 4, 2, 3], main: "wiss:Chemie", sk: ["wiss:Chemie", "konzentration", "elektronik", "allgemeinwissen", "erstehilfe", "beobachten", "ausweichen"], wp: ["Molotow-Cocktail", "Handsäge / Feinsäge"], ar: "Keine / normale Kleidung", inv: ["Laborkittel", "Schutzbrille", "Reagenzgläser", "Walkman"] },
+  { c: "Landwirt/in", w: [4, 2, 1, 3], main: "naturkunde", sk: ["naturkunde", "kraftakt", "fahrzeuge", "langwaffen", "technik", "reiten", "selbstbeherrschung"], wp: ["Mistgabel", "Schrotflinte (Pump-Action)"], ar: "Dicke Winterjacke", inv: ["Saatgut", "Arbeitshandschuhe", "Schachtel Schrot", "Traktorschlüssel"] },
+  { c: "Fernfahrer/in", w: [3, 2, 2, 3], main: "fahrzeuge", sk: ["fahrzeuge", "technik", "selbstbeherrschung", "handeln", "nahkampf", "instinkt", "elektronik"], wp: ["Baseballschläger (Alu)", "Revolver (.38 Special)"], ar: "Biker-Lederjacke", inv: ["CB-Funkgerät", "Straßenatlas", "Thermoskanne Kaffee", "Abschleppseil"] },
+  { c: "Kleinkriminelle/r", w: [3, 2, 3, 2], main: "heimlichkeit", sk: ["heimlichkeit", "taeuschen", "technik", "nahkampf", "ausweichen", "einschuechtern", "infos"], wp: ["Messer / Jagddolch", "Colt 1911 (.45 ACP)"], ar: "Biker-Lederjacke", inv: ["Dietriche", "gestohlene Uhr", "Sturmhaube", "Brechstange"] },
+  { c: "Pfarrer/in", w: [1, 3, 3, 4], main: "vortragen", sk: ["vortragen", "stabilitaet", "empathie", "ueberzeugen", "allgemeinwissen", "erstehilfe", "selbstbeherrschung"], wp: ["Stuhlbein / Knüppel"], ar: "Keine / normale Kleidung", inv: ["Bibel", "Kerzen", "Schlüssel zur Kirche", "Weinflasche"] },
+  { c: "Sportler/in", w: [4, 1, 2, 3], main: "athletik", sk: ["athletik", "ausweichen", "waffenlos", "selbstbeherrschung", "konzentration", "charme", "wurfwaffen"], wp: ["Baseballschläger (Alu)", "Martial Arts Angriff"], ar: "Eishockey-Ausrüstung", inv: ["Sporttasche", "Energieriegel", "Stoppuhr", "Wasserflasche"] }
+];
+const FIRST_M = ["Johnny", "Frank", "Mike", "Thomas", "Klaus", "Jürgen", "Rick", "Dale", "Markus", "Stefan", "Carl", "Tobias", "Glenn", "Andreas", "Ben", "Uwe"];
+const FIRST_F = ["Sandra", "Petra", "Lori", "Anna", "Michelle", "Sabine", "Carol", "Nicole", "Maggie", "Claudia", "Andrea", "Julia", "Tanja", "Rosita", "Kerstin", "Lena"];
+const LAST = ["Miller", "Schmidt", "Kowalski", "Becker", "Weber", "Wagner", "Hartmann", "Hoffmann", "Novak", "Krüger", "Bauer", "Neumann", "Jones", "Fischer", "Lindner", "Brandt"];
+const BUILDS = ["schmächtig", "drahtig", "durchschnittlich", "kräftig", "untersetzt", "groß und schlaksig", "breitschultrig", "zierlich"];
+const QUIRKS = ["kaut ständig Kaugummi", "summt alte Schlager vor sich hin", "redet mit sich selbst, wenn es still ist", "trägt immer eine verbeulte Mütze", "zählt Patronen, wenn nervös", "hat eine raue, leise Stimme", "lacht in den falschen Momenten", "schreibt alles in ein Notizbuch", "vertraut niemandem auf Anhieb", "sammelt Fotos von Fremden", "spricht mit starkem Dialekt", "kann keine Stille ertragen"];
+const VORTEILE = ["Furchtlos", "Gutes Gedächtnis", "Leichter Schlaf", "Zäh", "Ortskundig", "Vertrauenserweckend", "Scharfe Augen", "Geschickte Hände", "Gute Kondition", "Ruhige Hand"];
+const NACHTEILE = ["Spinnenphobie", "Kurzsichtig", "Raucherhusten", "Platzangst", "Asthma", "Höhenangst", "Hitzkopf", "Schlechtes Gewissen", "Alte Knieverletzung", "Misstrauisch"];
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+function weightedPick(keys, w) { let t = w.reduce((x, y) => x + y, 0), r = Math.random() * t; for (let i = 0; i < keys.length; i++) { r -= w[i]; if (r < 0) return i; } return keys.length - 1; }
+function randomChar(attrBudget = 13, skillBudget = 20, color) {
+  const A = pick(ARCHETYPES), female = Math.random() < .5, c = newChar();
+  if (color) c.color = color;
+  c.attrBudget = attrBudget; c.skillBudget = skillBudget;
+  c.name = `${pick(female ? FIRST_F : FIRST_M)} ${pick(LAST)}`;
+  c.gender = female ? "weiblich" : "männlich";
+  c.concept = A.c === "Feuerwehrmann/-frau" ? (female ? "Feuerwehrfrau" : "Feuerwehrmann") : A.c === "Kleinkriminelle/r" ? (female ? "Kleinkriminelle" : "Kleinkrimineller") : A.c.replace("/in", female ? "in" : "");
+  c.age = String(18 + Math.floor(Math.random() * 45));
+  c.build = pick(BUILDS);
+  c.desc = `${c.concept}, ${c.build}. ${pick(QUIRKS).replace(/^./, x => x.toUpperCase())}.`;
+  // Attribute: alle auf 1, Rest gewichtet verteilen (max. 6)
+  const keys = ATTRS.map(a => a[0]);
+  keys.forEach(k => c.attrs[k] = 1);
+  for (let left = attrBudget - 4, g = 0; left > 0 && g < 500; g++) { const i = weightedPick(keys, A.w.map((w, j) => c.attrs[keys[j]] >= 6 ? 0 : w)); if (c.attrs[keys[i]] < 6) { c.attrs[keys[i]]++; left--; } }
+  // Vor- und Nachteile: kostenloser kleiner Vorteil, manchmal ein kleiner Nachteil (+2 Punkte)
+  c.traits = [{ name: pick(VORTEILE), kind: "vorteil", size: "klein", free: true }];
+  if (Math.random() < .5) c.traits.push({ name: pick(NACHTEILE), kind: "nachteil", size: "klein", free: false });
+  let pts = skillBudget + (c.traits.length > 1 ? 2 : 0);
+  // Fertigkeiten: Hauptfertigkeit 4, dann bevorzugte Fertigkeiten, Rest zufällig (max. 3)
+  const val = {}; const setV = (k, v) => { val[k] = v; };
+  const all = Object.keys(SKILL_INFO);
+  const mainV = Math.min(4, pts); setV(A.main, mainV); pts -= mainV;
+  const pref = A.sk.filter(k => k !== A.main), others = shuffle(all.filter(k => !A.sk.includes(k)));
+  for (let g = 0; pts > 0 && g < 400; g++) {
+    const pool = Math.random() < .8 ? pref : others, k = pick(pool), v = val[k] || 0;
+    if (v >= 3) continue;
+    setV(k, v + 1); pts--;
+  }
+  c.skills = {}; c.custom = [];
+  for (const [k, v] of Object.entries(val)) {
+    if (k.startsWith("wiss:")) c.custom.push({ name: "Wissenschaft: " + k.slice(5), attr: "hirn", v, mark: false });
+    else c.skills[k] = { v, mark: false };
+  }
+  // Ausrüstung
+  c.weapons = A.wp.map(n => { const w = WEAPONS.find(x => x[0] === n); return { name: n, dmg: w ? w[1] : 2, note: w ? w[2] : "" }; });
+  const ar = ARMORS.find(x => x[0] === A.ar) || ARMORS[0];
+  c.armor = { name: ar[0], melee: ar[1], ranged: ar[2] };
+  c.inventory = shuffle(A.inv).slice(0, 3 + Math.floor(Math.random() * 2)).join("\n");
+  c.hp = null; c.sta = null; c.stress = null;
+  return c;
+}
+async function edRandom() {
+  const c = S.edit, filled = c.name || Object.values(c.skills || {}).some(s => +s.v);
+  if (filled && !await uiConfirm("Alle Angaben dieses Charakters durch einen Zufallscharakter ersetzen?", "Ersetzen")) return;
+  const r = randomChar(c.attrBudget, c.skillBudget, c.color); r.createdAt = c.createdAt || Date.now();
+  S.edit = r; render(); scheduleSave(); toast(`${r.name}, ${r.concept}, ist bereit. Passe an, was du willst.`);
+}
+
 // ===================== Charakter-Editor =====================
 let saveT = null;
 function scheduleSave() {
@@ -416,7 +492,7 @@ const opt = (list, v) => list.map(([k, n]) => `<option value="${esc(k)}" ${Strin
 const inp = (k, v, ph = "", extra = "") => `<input data-k="${k}" value="${esc(v)}" placeholder="${esc(ph)}" oninput="edInput(this)" ${extra}>`;
 function editHTML() {
   const c = S.edit;
-  return `<div class="row" style="margin-bottom:12px"><button class="btn" onclick="saveEdit().then(()=>go('home'))">← Fertig</button><h1 class="grow">${S.myChars[S.editId] ? "Charakter bearbeiten" : "Neuer Charakter"}</h1><span class="saved" id="saved"></span></div>
+  return `<div class="row" style="margin-bottom:12px"><button class="btn" onclick="saveEdit().then(()=>go('home'))">← Fertig</button><h1 class="grow">${S.myChars[S.editId] ? "Charakter bearbeiten" : "Neuer Charakter"}</h1><span class="saved" id="saved"></span><button class="btn" title="Komplett zufälligen Charakter mit den gewählten Punktzahlen erzeugen" onclick="edRandom()">🎲 Zufallscharakter</button></div>
   <div class="ed"><div>
     <section class="card"><h3>Wer bist du?</h3><p class="small mute" style="margin-top:4px">Name, Beruf, Eigenarten. Für den Anfang eignen sich Stereotype: Haudrauf, Forscherin, „Kumpel von nebenan“.</p>
       <div class="grid2"><label class="f"><span>Name</span>${inp("name", c.name, "z. B. Johnny Miller")}</label><label class="f"><span>Beruf / Konzept</span>${inp("concept", c.concept, "z. B. Mechaniker")}</label>

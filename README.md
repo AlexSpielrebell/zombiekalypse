@@ -5,7 +5,7 @@ eigener kleiner Server, kein Konto nötig. Wer die Adresse öffnet, gibt einmal 
 
 ## Was die App kann
 
-- **Charaktere anlegen und bearbeiten** nach den aktuellen Regeln: vier Attribute, Fertigkeitsliste mit Spezialisierungen,
+- **Charaktere anlegen und bearbeiten** nach den aktuellen Regeln (oder per „🎲 Zufallscharakter“ komplett auswürfeln lassen, passend zu einem von 14 Berufen und den gewählten Punktzahlen): vier Attribute, Fertigkeitsliste mit Spezialisierungen,
   Vor- und Nachteile, Waffen und Rüstung (mit Vorlagen aus den Regeltabellen), Inventar, Lernpunkte.
   Eine Übersicht prüft Attribut- und Fertigkeitspunkte und die Erstellungsgrenzen und rechnet Lebenspunkte, Ausdauer und Initiative aus.
 - **Spielrunden**: Beim Beitreten wählt jede Person, ob sie als Spieler/in (mit einem ihrer Charaktere) oder als Spielleitung dabei ist. Die Rolle lässt sich jederzeit wechseln, mehrere Spielleitungen sind möglich. Wer die Runde anlegt, muss nicht die Spielleitung sein.
