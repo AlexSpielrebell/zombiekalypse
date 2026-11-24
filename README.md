@@ -8,6 +8,10 @@ eigener kleiner Server, kein Konto nötig. Wer die Adresse öffnet, gibt einmal 
 - **Charaktere anlegen und bearbeiten** nach den aktuellen Regeln (oder per „🎲 Zufallscharakter“ komplett auswürfeln lassen, passend zu einem von 14 Berufen und den gewählten Punktzahlen): vier Attribute, Fertigkeitsliste mit Spezialisierungen,
   Vor- und Nachteile, Waffen und Rüstung (mit Vorlagen aus den Regeltabellen), Inventar, Lernpunkte.
   Eine Übersicht prüft Attribut- und Fertigkeitspunkte und die Erstellungsgrenzen und rechnet Lebenspunkte, Ausdauer und Initiative aus.
+- **Steigern mit Lernpunkten** („📈“ in der Charakterliste oder im eigenen Bogen): hinter jedem Attribut, jeder Fertigkeit und den
+  Stresswürfeln ein „+1“-Button mit den Kosten (Attribut neuer Wert ×3, Fertigkeit neuer Wert ×1, neue Fertigkeit 3, Stresswürfel
+  neuer Wert ×5). Geplante Steigerungen lassen sich mit ↶ zurücknehmen; erst „Änderungen bestätigen“ schreibt sie fest in den Charakter
+  und zieht die Lernpunkte ab. Die Steigerungen werden im Charakter protokolliert.
 - **Import aus Excel**: „Importieren (JSON/Excel)“ liest ein Charakterblatt im Format der Excel-Vorlage (.xlsx) ein: Name, Beruf, Alter,
   Geschlecht, Größe, Herkunft u. Ä., Attribute, Fertigkeiten (unbekannte werden als eigene Fertigkeit übernommen), Vor- und Nachteile
   (±2 = groß, ±1 = klein), Ausrüstung, Waffen, Stresswürfel, Lernpunkte und aktuelle LP/Ausdauer. Die Felder werden über ihre

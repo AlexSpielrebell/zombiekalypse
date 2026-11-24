@@ -160,6 +160,12 @@ table.wt th{color:var(--mute);font-weight:600;font-size:12px;text-transform:uppe
 .tok-name{fill:#f2f4ea;font-weight:700;font-size:15px;paint-order:stroke;stroke:#000a;stroke-width:4px;pointer-events:none}
 .tok-ini{fill:#11160b;font-family:var(--head);font-size:30px;pointer-events:none}
 #wb-draft{pointer-events:none}
+/* Steigern */
+.lvgrp{margin-bottom:14px}.lvgrp h3{margin-bottom:4px}
+.lv{display:grid;grid-template-columns:minmax(0,1fr) 70px auto 118px;gap:8px;align-items:center;padding:4px 6px;border-bottom:1px solid var(--line);border-radius:6px}
+.lv.attr{background:var(--bg2);font-weight:700;margin-top:4px}.lv.attr .nm{font-family:var(--head);letter-spacing:.05em;color:var(--acc);font-weight:400;font-size:16px}
+.lv.chg{background:#1b2414}.lv .val{text-align:right}.lv .btn.sm{padding:3px 8px}
+@media (max-width:760px){.lv{grid-template-columns:minmax(0,1fr) 54px auto 104px}}
 /* Kampf */
 .cb{display:flex;flex-direction:column;gap:12px}
 .tabs .badge{background:var(--blood);color:#fff;border-radius:10px;padding:0 7px;font-size:11.5px;margin-left:4px}
@@ -316,7 +322,8 @@ function render() {
   const app = $("#app");
   if (S.view === "home") app.innerHTML = homeHTML();
   else if (S.view === "edit") { app.innerHTML = editHTML(); renderSum(); }
-  else if (S.view === "view") app.innerHTML = `<div class="row" style="margin-bottom:12px"><button class="btn" onclick="go('home')">← Zurück</button><button class="btn" onclick="editChar('${S.viewId}')">Bearbeiten</button></div>` + sheetHTML(S.myChars[S.viewId] || newChar(), { owner: UID, id: S.viewId, own: true });
+  else if (S.view === "level") app.innerHTML = S.lvl ? levelHTML() : "";
+  else if (S.view === "view") app.innerHTML = `<div class="row" style="margin-bottom:12px"><button class="btn" onclick="go('home')">← Zurück</button><button class="btn" onclick="editChar('${S.viewId}')">Bearbeiten</button><button class="btn" onclick="openLevel('${S.viewId}','view')">📈 Steigern</button></div>` + sheetHTML(S.myChars[S.viewId] || newChar(), { owner: UID, id: S.viewId, own: true });
   else if (S.view === "game") renderGame();
 }
 
@@ -329,7 +336,7 @@ function homeHTML() {
     <div class="card"><div class="row"><h2 class="grow">Meine Charaktere</h2><button class="btn" title="Charakter aus JSON-Export oder Excel-Charakterblatt (.xlsx) importieren" onclick="importChar()">Importieren (JSON/Excel)</button><button class="btn pri" onclick="editChar()">+ Neuer Charakter</button></div>
       <div class="list">${chars.length ? chars.map(([id, c]) => `<div class="item"><div class="av" style="--c:${esc(c.color)};width:38px;height:38px;font-size:16px">${esc(initials(c.name))}</div>
         <div class="grow"><div class="t">${esc(c.name || "Unbenannt")}</div><div class="s">${esc(c.concept || "")} ${ATTRS.map(([a, n]) => `${n[0]}${c.attrs?.[a] ?? "?"}`).join(" · ")}</div></div>
-        <button class="btn sm" onclick="viewChar('${id}')">Ansehen</button><button class="btn sm" onclick="editChar('${id}')">Bearbeiten</button>
+        <button class="btn sm" onclick="viewChar('${id}')">Ansehen</button><button class="btn sm" onclick="editChar('${id}')">Bearbeiten</button><button class="btn sm" title="Mit Lernpunkten steigern (${+c.lp || 0} LP)" onclick="openLevel('${id}','home')">📈 ${+c.lp || 0}</button>
         <button class="btn sm" title="Als JSON speichern" onclick="exportChar('${id}')">⇩</button><button class="btn sm danger" title="Löschen" onclick="delChar('${id}')">✕</button></div>`).join("")
         : `<div class="empty">Noch keine Charaktere. Leg deinen ersten Überlebenden an.</div>`}</div>
       <p class="small mute">Charaktere liegen auf dem Server, mit einer Sicherungskopie in diesem Browser: Gehen sie auf dem Server verloren, stellt die App sie beim nächsten Öffnen wieder her. Auf ein anderes Gerät per Export/Import mitnehmen.</p></div>
@@ -611,6 +618,94 @@ async function importExcel(file) {
   else toast(`${c.name || "Charakter"} aus Excel importiert.`);
 }
 
+// ===================== Steigern mit Lernpunkten =====================
+// Kosten laut Regeln: Attribut = neuer Wert ×3 · Fertigkeit = neuer Wert ×1 · neue Fertigkeit (0 → 1) = 3 · Stresswürfel = neuer Wert ×5
+const lvlCost = (kind, nv) => kind === "attr" ? nv * 3 : kind === "stress" ? nv * 5 : (nv === 1 ? 3 : nv);
+function lvlItems() { // [{id, kind, name, attr, base}]
+  const L = S.lvl, c = L.base, out = [];
+  for (const [a, n] of ATTRS) {
+    out.push({ id: "a:" + a, kind: "attr", name: n, attr: a, base: +c.attrs[a] || 0 });
+    for (const [k, sn] of SKILLS[a]) out.push({ id: "s:" + k, kind: "skill", name: sn, attr: a, base: +c.skills?.[k]?.v || 0, mark: !!c.skills?.[k]?.mark });
+    (c.custom || []).forEach((s, i) => { if (s.attr === a && s.name) out.push({ id: "c:" + i, kind: "skill", name: s.name, attr: a, base: +s.v || 0, mark: !!s.mark }); });
+    L.added.forEach((s, i) => { if (s.attr === a) out.push({ id: "n:" + i, kind: "skill", name: s.name, attr: a, base: 0, isNew: true }); });
+  }
+  out.push({ id: "stress", kind: "stress", name: "Stresswürfel", base: +c.stressMax || 0 });
+  return out;
+}
+function lvlSpent() { let t = 0; for (const it of lvlItems()) for (let j = 1; j <= (S.lvl.d[it.id] || 0); j++) t += lvlCost(it.kind, it.base + j); return t; }
+function openLevel(id, back) {
+  const c = S.myChars[id]; if (!c) return;
+  S.lvl = { id, base: JSON.parse(JSON.stringify(c)), d: {}, added: [], back: back || S.view };
+  S.view = "level"; render(); window.scrollTo(0, 0);
+}
+function lvlStep(itemId, dir) {
+  const L = S.lvl, it = lvlItems().find(x => x.id === itemId); if (!it) return;
+  const n = L.d[itemId] || 0;
+  if (dir > 0) { const cost = lvlCost(it.kind, it.base + n + 1); if (cost > (+L.base.lp || 0) - lvlSpent()) { toast("Nicht genug Lernpunkte."); return; } L.d[itemId] = n + 1; }
+  else if (n > 0) { L.d[itemId] = n - 1; if (!L.d[itemId]) delete L.d[itemId]; }
+  if (dir < 0 && itemId.startsWith("n:") && !L.d[itemId]) { const i = +itemId.slice(2); L.added.splice(i, 1); const nd = {}; for (const [k, v] of Object.entries(L.d)) { if (k.startsWith("n:")) { const j = +k.slice(2); if (j > i) nd["n:" + (j - 1)] = v; else nd[k] = v; } else nd[k] = v; } L.d = nd; }
+  render();
+}
+async function lvlAddSkill() {
+  const name = ((await uiPrompt("Neue Fertigkeit, z. B. „Wissenschaft: Medizin“", "Wissenschaft: ")) || "").trim(); if (!name) return;
+  const existing = lvlItems().find(x => x.kind === "skill" && norm(x.name) === norm(name)); if (existing) { toast("Diese Fertigkeit gibt es schon. Steigere sie direkt in der Liste."); return; }
+  const attr = await modal(`<p>Zu welchem Attribut gehört „${esc(name)}“? (Im Zweifel entscheidet die Spielleitung.)</p><select>${opt(ATTRS, "hirn")}</select><div class="row" style="justify-content:flex-end;margin-top:12px"><button class="btn" data-cancel>Abbrechen</button><button class="btn pri" data-ok>Hinzufügen</button></div>`, b => b.querySelector("select").value);
+  if (!attr) return;
+  S.lvl.added.push({ name: name.slice(0, 60), attr }); lvlStep("n:" + (S.lvl.added.length - 1), 1);
+  if (!S.lvl.d["n:" + (S.lvl.added.length - 1)]) { S.lvl.added.pop(); render(); }
+}
+function lvlReset() { S.lvl.d = {}; S.lvl.added = []; render(); }
+async function lvlLeave() {
+  if (Object.keys(S.lvl.d).length && !await uiConfirm("Die geplanten Steigerungen verwerfen?", "Verwerfen")) return;
+  const back = S.lvl.back; S.lvl = null; S.view = back === "game" && S.G ? "game" : back === "view" ? "view" : "home"; render();
+}
+async function lvlConfirm() {
+  const L = S.lvl, items = lvlItems(), spent = lvlSpent(), changes = [];
+  const patch = { attrs: {}, skills: {}, lp: (+L.base.lp || 0) - spent, updatedAt: Date.now() };
+  const custom = (L.base.custom || []).map(x => ({ ...x }));
+  for (const it of items) {
+    const n = L.d[it.id] || 0; if (!n) continue;
+    const nv = it.base + n; changes.push(`${it.name} ${it.base} → ${nv}`);
+    if (it.kind === "attr") patch.attrs[it.attr] = nv;
+    else if (it.kind === "stress") { patch.stressMax = nv; const st = L.base.stress; if (st !== null && st !== undefined) patch.stress = st + n; }
+    else if (it.id.startsWith("s:")) patch.skills[it.id.slice(2)] = { v: nv };
+    else if (it.id.startsWith("c:")) custom[+it.id.slice(2)].v = nv;
+    else if (it.id.startsWith("n:")) custom.push({ name: it.name, attr: it.attr, v: nv, mark: false });
+  }
+  if (!changes.length) return;
+  if (!await uiConfirm(`Diese Steigerungen fest übernehmen? ${changes.join(", ")}. Kosten: ${spent} Lernpunkte.`, "Bestätigen")) return;
+  patch.custom = custom;
+  patch.history = [...(L.base.history || []), { ts: Date.now(), cost: spent, changes }].slice(-100);
+  try { await DB.doc(charPath(UID, L.id)).update(patch); } catch (e) { writeErr(e); return; }
+  toast(`Gesteigert: ${changes.join(", ")} (−${spent} LP).`);
+  const back = L.back; S.lvl = null; S.view = back === "game" && S.G ? "game" : back === "view" ? "view" : "home"; render();
+}
+function levelHTML() {
+  const L = S.lvl, c = L.base, have = +c.lp || 0, spent = lvlSpent(), left = have - spent, items = lvlItems();
+  const row = it => {
+    const n = L.d[it.id] || 0, nv = it.base + n, next = lvlCost(it.kind, nv + 1), can = next <= left;
+    const label = it.kind === "skill" && nv === 0 ? "neu lernen" : `auf ${nv + 1}`;
+    return `<div class="lv ${it.kind} ${n ? "chg" : ""}"><span class="nm">${esc(it.name)}${it.mark ? ` <span class="tag" style="padding:0 6px" title="Im Spiel erfolgreich eingesetzt">☑</span>` : ""}${it.isNew ? ` <span class="tag v" style="padding:0 6px">neu</span>` : ""}</span>
+      <span class="val">${n ? `<s class="mute">${it.base}</s> <b class="good">${nv}</b>` : `<b>${it.base || "–"}</b>`}</span>
+      <button class="btn sm" ${n ? "" : "disabled"} title="Letzte Steigerung zurücknehmen" onclick="lvlStep('${it.id}',-1)">↶</button>
+      <button class="btn sm ${can ? "pri" : ""}" ${can ? "" : "disabled"} title="${label} für ${next} Lernpunkte" onclick="lvlStep('${it.id}',1)">+1 · ${next} LP</button></div>`;
+  };
+  return `<div class="row" style="margin-bottom:12px"><button class="btn" onclick="lvlLeave()">← Zurück</button><h1 class="grow">Steigern: ${esc(c.name || "Unbenannt")}</h1></div>
+  <div class="ed"><div class="card">
+    <p class="small mute" style="margin-top:0">Kosten: Attribut = neuer Wert ×3 · Fertigkeit = neuer Wert ×1 · neue Fertigkeit = 3 · Stresswürfel = neuer Wert ×5. Bis zum Bestätigen lässt sich jede Steigerung mit ↶ zurücknehmen. ☑ = im Spiel erfolgreich eingesetzt.</p>
+    ${ATTRS.map(([a, n]) => `<div class="lvgrp"><h3>${n}</h3>${items.filter(it => it.attr === a).map(row).join("")}</div>`).join("")}
+    <div class="lvgrp"><h3>Sonstiges</h3>${items.filter(it => it.kind === "stress").map(row).join("")}<button class="btn sm" style="margin-top:8px" onclick="lvlAddSkill()">+ Neue Fertigkeit / Spezialisierung lernen (3 LP)</button></div>
+  </div>
+  <aside class="card sum"><h3>Lernpunkte</h3>
+    <div class="line"><span>Vorrat</span><b>${have}</b></div>
+    <div class="line"><span>Verplant</span><b class="${spent ? "warn" : ""}">${spent ? "−" + spent : 0}</b></div>
+    <div class="line"><span>Übrig</span><b class="${left ? "good" : ""}">${left}</b></div>
+    ${Object.keys(L.d).length ? `<ul>${items.filter(it => L.d[it.id]).map(it => `<li>${esc(it.name)}: ${it.base} → ${it.base + L.d[it.id]}</li>`).join("")}</ul>` : `<p class="small mute">Noch nichts geplant.</p>`}
+    <div class="row" style="margin-top:12px"><button class="btn pri grow" ${Object.keys(L.d).length ? "" : "disabled"} onclick="lvlConfirm()">Änderungen bestätigen</button><button class="btn" ${Object.keys(L.d).length ? "" : "disabled"} onclick="lvlReset()">Alles zurücksetzen</button></div>
+    ${(c.history || []).length ? `<details style="margin-top:12px"><summary class="small mute" style="cursor:pointer">Bisherige Steigerungen</summary><ul>${c.history.slice().reverse().map(h => `<li>${new Date(h.ts).toLocaleDateString("de-DE")}: ${esc(h.changes.join(", "))} (−${h.cost})</li>`).join("")}</ul></details>` : ""}
+  </aside></div>`;
+}
+
 // ===================== Charakter-Editor =====================
 let saveT = null;
 function scheduleSave() {
@@ -731,7 +826,7 @@ function sheetHTML(c, o = {}) {
     ${(c.weapons || []).length ? `<div><h3 style="margin-bottom:6px">Waffen</h3><table class="wt"><tr><th>Waffe</th><th>Schaden</th><th>Besonderheiten</th></tr>${c.weapons.map((w, wi) => `<tr><td>${pick ? `<button class="lnk" title="Angriff und Schaden mit dieser Waffe vorbereiten" onclick="pickWeapon(${wi})">${esc(w.name)} 🎲</button>` : esc(w.name)}</td><td><b>${+w.dmg || 0}W</b></td><td class="mute">${esc(w.note)}</td></tr>`).join("")}</table></div>` : ""}
     ${c.inventory ? `<div><h3 style="margin-bottom:4px">Inventar</h3><div class="pre">${esc(c.inventory)}</div></div>` : ""}
     ${c.desc || c.notes ? `<details><summary class="mute" style="cursor:pointer">Beschreibung &amp; Notizen</summary><div class="pre" style="margin-top:6px">${esc(c.desc)}${c.desc && c.notes ? "\n\n" : ""}${esc(c.notes)}</div></details>` : ""}
-    <div class="small mute">Lernpunkte: ${+c.lp || 0}</div>
+    <div class="row small mute">Lernpunkte: ${+c.lp || 0}${own && S.myChars[o.id] ? `<button class="btn sm" onclick="openLevel('${o.id}','${S.view === "game" ? "game" : "view"}')">📈 Steigern</button>` : ""}</div>
   </div>`;
 }
 async function charRes(owner, id, k, d) {
